@@ -1,0 +1,13 @@
+@font-face {
+  font-family: "Jakarta-Regular";
+  src: url("https://fonts.gstatic.com/s/plusjakartasans/v8/PlusJakartaSans-Regular.ttf");
+}
+
+@font-face {
+  font-family: "Jakarta-Bold";
+  src: url("https://fonts.gstatic.com/s/plusjakartasans/v8/PlusJakartaSans-Bold.ttf");
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
