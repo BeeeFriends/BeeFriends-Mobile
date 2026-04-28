@@ -1,0 +1,181 @@
+name: BeeFriends Android APK Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Clear cache and android folder
+        run: |
+          rm -rf node_modules/.cache .expo /tmp/metro-* /tmp/haste-* android
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android
+
+      - name: Configure Gradle properties
+        run: |
+          echo "android.useAndroidX=true" >> android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
+          echo "newArchEnabled=true" >> android/gradle.properties
+
+      - name: Decode release keystore
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/beefriends-release.keystore
+          echo "KEYSTORE_PATH=$(pwd)/android/app/beefriends-release.keystore" >> $GITHUB_ENV
+
+      - name: Configure release signing
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          python3 - << 'PYEOF'
+          import re
+
+          with open("android/app/build.gradle", "r") as f:
+              content = f.read()
+
+          signing_config = """
+              signingConfigs {
+                  release {
+                      storeFile file(System.getenv("KEYSTORE_PATH"))
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+          """
+
+          content = re.sub(
+              r'(release \{[^}]*?)(\})',
+              r'\1            signingConfig signingConfigs.release\n        \2',
+              content,
+              count=1,
+              flags=re.DOTALL
+          )
+
+          content = content.replace(
+              "    buildTypes {",
+              signing_config + "    buildTypes {",
+              1
+          )
+
+          with open("android/app/build.gradle", "w") as f:
+              f.write(content)
+
+          print("build.gradle signing configured successfully")
+          PYEOF
+
+      - name: Limit NDK architectures to arm64-v8a only
+        run: |
+          sed -i '/versionName "1.0.0"/a\        ndk {\n            abiFilters "arm64-v8a"\n        }' android/app/build.gradle || true
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Clean Android build cache
+        run: |
+          rm -rf android/app/build
+          rm -rf android/app/.cxx
+          rm -rf android/.gradle
+
+      - name: Build Android APK
+        run: |
+          cd android
+          ./gradlew clean
+          ./gradlew assembleRelease --no-daemon --stacktrace --warning-mode all
+        env:
+          KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          REACT_NATIVE_METRO_CACHE: none
+          METRO_NO_CACHE: 1
+          NODE_OPTIONS: --max-old-space-size=2048
+          GRADLE_OPTS: -Xmx3g -Xms512m -XX:MaxMetaspaceSize=512m
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beefriends-release.apk
+          path: android/app/build/outputs/apk/release/
+
+      - name: Generate release tag
+        id: release_tag
+        run: |
+          echo "tag=v1.0.0-build.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          RECENT_CHANGES=$(git log -5 --pretty=format:"- %s (%h)")
+
+          cat > release_notes.md << EOF
+          ## Build Information
+          - **Build Number**: ${{ github.run_number }}
+          - **Build Date**: ${{ steps.release_tag.outputs.date }}
+          - **Commit**: ${{ github.sha }}
+          - **Branch**: ${{ github.ref_name }}
+
+          ## Recent Changes
+          ${RECENT_CHANGES}
+
+          ## Installation
+          Download the APK below and install it on an Android device.
+
+          ## Architecture
+          This build uses arm64-v8a for modern Android devices.
+          EOF
+
+      - name: Create GitHub Release
+        id: create_release
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.release_tag.outputs.tag }}" \
+            android/app/build/outputs/apk/release/*.apk \
+            --title "BeeFriends Build #${{ github.run_number }}" \
+            --notes-file release_notes.md \
+            --target ${{ github.sha }}
+
+      - name: Release Status
+        if: steps.create_release.outcome == 'failure'
+        run: |
+          echo "APK tersimpan di Actions artifacts (GitHub Release gagal dibuat)"
+          echo ""
+          echo "Untuk fix: Settings -> Actions -> Workflow permissions -> Read and write"
