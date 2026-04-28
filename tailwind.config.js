@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   // Pastikan path ini mencakup semua file komponen/layar Anda
-  content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
+  content: ["./app/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
@@ -14,7 +14,7 @@ module.exports = {
         // Nama "jakarta" ini yang akan dipanggil di className
         jakarta: ["Jakarta-Regular", "sans-serif"],
         "jakarta-bold": ["Jakarta-Bold", "sans-serif"],
-        "jakarta-semibold": ["Jakarta-Semibold", "sans-serif"],
+        "jakarta-semibold": ["Jakarta-SemiBold", "sans-serif"],
       },
     },
   },
