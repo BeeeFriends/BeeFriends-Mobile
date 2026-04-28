@@ -1,10 +1,5 @@
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-// 1. Import font dari library Google Fonts yang sudah diinstal
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_600SemiBold,
@@ -16,18 +11,15 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 import "../global.css";
 
-import { useColorScheme } from "@/components/useColorScheme";
-
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "index",
 };
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  // 2. Daftarkan font Plus Jakarta Sans di sini
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     "Jakarta-Regular": PlusJakartaSans_400Regular,
@@ -53,13 +45,10 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={DefaultTheme}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );
