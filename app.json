@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "BeeFriends-FE",
-    "slug": "BeeFriends-FE",
+    "name": "BeeFriends",
+    "slug": "beefriends",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/beefriends_logo.png",
@@ -21,17 +21,15 @@
         "foregroundImage": "./assets/images/beefriends_logo.png",
         "monochromeImage": "./assets/images/beefriends_logo.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.drian0512.BeeFriendsFE"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/beefriends_logo.png"
     },
-    "plugins": [
-      "expo-router",
-      "expo-font"
-    ],
+    "plugins": ["expo-router", "expo-font"],
     "experiments": {
       "typedRoutes": true
     }
