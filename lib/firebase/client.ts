@@ -1,5 +1,7 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getAuth, initializeAuth } from "firebase/auth";
+import type { Persistence, ReactNativeAsyncStorage } from "firebase/auth";
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -23,5 +25,63 @@ export const firebaseApp = getApps().length
   ? getApp()
   : initializeApp(firebaseConfig);
 
-export const firebaseAuth = getAuth(firebaseApp);
+function getReactNativePersistence(
+  storage: ReactNativeAsyncStorage,
+): Persistence {
+  return class {
+    static type = "LOCAL" as const;
+    readonly type = "LOCAL" as const;
 
+    async _isAvailable() {
+      try {
+        await storage.setItem("firebase:storageAvailable", "1");
+        await storage.removeItem("firebase:storageAvailable");
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    _set(key: string, value: unknown) {
+      return storage.setItem(key, JSON.stringify(value));
+    }
+
+    async _get<T>(key: string) {
+      const value = await storage.getItem(key);
+      return value ? (JSON.parse(value) as T) : null;
+    }
+
+    _remove(key: string) {
+      return storage.removeItem(key);
+    }
+
+    _addListener() {
+      return;
+    }
+
+    _removeListener() {
+      return;
+    }
+  } as Persistence;
+}
+
+function initializeFirebaseAuth() {
+  try {
+    return initializeAuth(firebaseApp, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch (error) {
+    const code =
+      typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: unknown }).code)
+        : "";
+
+    if (code === "auth/already-initialized") {
+      return getAuth(firebaseApp);
+    }
+
+    throw error;
+  }
+}
+
+export const firebaseAuth = initializeFirebaseAuth();
