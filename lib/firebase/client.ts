@@ -3,8 +3,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAuth, initializeAuth } from "firebase/auth";
 import type { Auth, Persistence, ReactNativeAsyncStorage } from "firebase/auth";
 
-function requireEnv(name: string) {
-  const value = process.env[name];
+let cachedAuth: Auth | null = null;
+
+function requireEnv(name: string, value: string | undefined) {
   if (!value) {
     throw new Error(`Missing Firebase config: ${name}`);
   }
@@ -12,16 +13,23 @@ function requireEnv(name: string) {
   return value;
 }
 
-let cachedAuth: Auth | null = null;
-
 function getFirebaseConfig() {
   return {
-    apiKey: requireEnv("EXPO_PUBLIC_FIREBASE_API_KEY"),
+    apiKey: requireEnv(
+      "EXPO_PUBLIC_FIREBASE_API_KEY",
+      process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+    ),
     authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: requireEnv("EXPO_PUBLIC_FIREBASE_PROJECT_ID"),
+    projectId: requireEnv(
+      "EXPO_PUBLIC_FIREBASE_PROJECT_ID",
+      process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    ),
     storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: requireEnv("EXPO_PUBLIC_FIREBASE_APP_ID"),
+    appId: requireEnv(
+      "EXPO_PUBLIC_FIREBASE_APP_ID",
+      process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+    ),
   };
 }
 
