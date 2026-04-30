@@ -9,9 +9,10 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from "firebase/auth";
+import type { UserCredential } from "firebase/auth";
 
 import { requestJson } from "./client";
-import { firebaseAuth } from "../firebase/client";
+import { getFirebaseAuth } from "../firebase/client";
 
 const FIREBASE_LOGIN_ENDPOINT = "/api/v1/user/auth/firebase-login";
 
@@ -35,7 +36,7 @@ export async function registerAccount({
 
   try {
     const credential = await createUserWithEmailAndPassword(
-      firebaseAuth,
+      getFirebaseAuth(),
       payload.binusianEmail,
       payload.password,
     );
@@ -113,13 +114,18 @@ export async function loginAccount(
   password: string,
 ): Promise<AuthResponseDto> {
   const payload: LoginDto = { binusianEmail, password };
-  const credential = await signInWithEmailAndPassword(
-    firebaseAuth,
-    payload.binusianEmail,
-    payload.password,
-  ).catch((error) => {
+
+  let credential: UserCredential;
+  try {
+    credential = await signInWithEmailAndPassword(
+      getFirebaseAuth(),
+      payload.binusianEmail,
+      payload.password,
+    );
+  } catch (error) {
     throw new Error(getFirebaseAuthErrorMessage(error));
-  });
+  }
+
   const idToken = await credential.user.getIdToken();
 
   return requestJson<AuthResponseDto>(FIREBASE_LOGIN_ENDPOINT, {
@@ -156,6 +162,13 @@ function getFirebaseAuthErrorMessage(error: unknown) {
 
   if (code === "auth/network-request-failed") {
     return "Network error. Check your connection and try again.";
+  }
+
+  if (
+    error instanceof Error &&
+    error.message.startsWith("Missing Firebase config")
+  ) {
+    return "Authentication is not configured in this build. Please rebuild with Firebase environment variables.";
   }
 
   if (error instanceof Error && error.message) {
