@@ -17,6 +17,8 @@ import { getFirebaseAuth } from "../firebase/client";
 const FIREBASE_LOGIN_ENDPOINT = "/api/v1/user/auth/firebase-login";
 
 type RegisterAccountPayload = RegisterDto & {
+  gender: string;
+  age: number;
   profilePhotoUri: string;
   photoUris?: string[];
 };
@@ -33,14 +35,16 @@ export async function registerAccount({
   ...payload
 }: RegisterAccountPayload): Promise<AuthResponseDto> {
   let firebaseUser = null;
+  let createdFirebaseUser = false;
 
   try {
-    const credential = await createUserWithEmailAndPassword(
-      getFirebaseAuth(),
+    const firebaseCredential = await createOrSignInFirebaseUser(
       payload.binusianEmail,
       payload.password,
     );
+    const credential = firebaseCredential.credential;
     firebaseUser = credential.user;
+    createdFirebaseUser = firebaseCredential.created;
 
     if (payload.displayName) {
       await updateProfile(firebaseUser, {
@@ -57,11 +61,38 @@ export async function registerAccount({
       firebaseIdToken,
     });
   } catch (error) {
-    if (firebaseUser) {
+    if (firebaseUser && createdFirebaseUser) {
       await firebaseUser.delete().catch(() => undefined);
     }
 
     throw new Error(getFirebaseAuthErrorMessage(error));
+  }
+}
+
+async function createOrSignInFirebaseUser(
+  binusianEmail: string,
+  password: string,
+) {
+  try {
+    const credential = await createUserWithEmailAndPassword(
+      getFirebaseAuth(),
+      binusianEmail,
+      password,
+    );
+
+    return { credential, created: true };
+  } catch (error) {
+    if (getFirebaseErrorCode(error) !== "auth/email-already-in-use") {
+      throw error;
+    }
+
+    const credential = await signInWithEmailAndPassword(
+      getFirebaseAuth(),
+      binusianEmail,
+      password,
+    );
+
+    return { credential, created: false };
   }
 }
 
@@ -82,6 +113,8 @@ async function registerBackendAccount({
   formData.append("firebaseIdToken", firebaseIdToken);
   formData.append("phoneNumber", payload.phoneNumber);
   formData.append("displayName", payload.displayName);
+  formData.append("gender", payload.gender);
+  formData.append("age", String(payload.age));
   formData.append("binusianYear", String(payload.binusianYear));
   formData.append("majorId", String(payload.majorId));
   formData.append("campusId", String(payload.campusId));
@@ -138,10 +171,7 @@ export async function loginAccount(
 }
 
 function getFirebaseAuthErrorMessage(error: unknown) {
-  const code =
-    typeof error === "object" && error !== null && "code" in error
-      ? String((error as { code?: unknown }).code)
-      : "";
+  const code = getFirebaseErrorCode(error);
 
   if (
     code === "auth/invalid-credential" ||
@@ -176,6 +206,12 @@ function getFirebaseAuthErrorMessage(error: unknown) {
   }
 
   return "Authentication failed. Try again.";
+}
+
+function getFirebaseErrorCode(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : "";
 }
 
 function createFormDataFile(uri: string, fallbackName: string): FormDataFile {
