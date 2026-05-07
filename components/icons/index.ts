@@ -1,0 +1,12 @@
+export { CardIcon } from "./CardIcon";
+export { ChatIcon } from "./ChatIcon";
+export { CommentIcon } from "./CommentIcon";
+export { HandIcon } from "./HandIcon";
+export { LocationCampusIcon } from "./LocationCampusIcon";
+export { MajorIcon } from "./MajorIcon";
+export { NotificationIcon } from "./NotificationIcon";
+export { PersonIcon } from "./PersonIcon";
+export { SearchIcon } from "./SearchIcon";
+export { SettingIcon } from "./SettingIcon";
+export { SubstrackIcon } from "./SubstrackIcon";
+export type { IconProps } from "./types";
