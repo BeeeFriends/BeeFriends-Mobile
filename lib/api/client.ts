@@ -4,6 +4,12 @@ type RequestJsonOptions = Omit<RequestInit, "headers"> & {
   headers?: HeadersInit;
 };
 
+type ApiSuccessResponse<T> = {
+  success: boolean;
+  message?: string;
+  data: T;
+};
+
 export async function requestJson<T>(
   path: string,
   options: RequestJsonOptions = {},
@@ -24,7 +30,13 @@ export async function requestJson<T>(
     throw new Error(message || `Request failed with status ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  const body = (await response.json()) as T | ApiSuccessResponse<T>;
+
+  if (isApiSuccessResponse<T>(body)) {
+    return body.data;
+  }
+
+  return body;
 }
 
 async function getErrorMessage(response: Response) {
@@ -45,4 +57,15 @@ async function getErrorMessage(response: Response) {
   }
 
   return body;
+}
+
+function isApiSuccessResponse<T>(
+  body: T | ApiSuccessResponse<T>,
+): body is ApiSuccessResponse<T> {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "success" in body &&
+    "data" in body
+  );
 }
