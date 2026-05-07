@@ -22,7 +22,7 @@ import { getMajorOptions } from "../lib/api/majors";
 import { saveAuthSession } from "../lib/auth/session";
 import type { SelectOption } from "../lib/api/types";
 
-const steps = [1, 2, 3, 4];
+const steps = [1, 2, 3, 4, 5];
 const currentYear = new Date().getFullYear() + 4;
 const binusianYearOptions: SelectOption[] = Array.from(
   { length: currentYear - 2010 + 1 },
@@ -36,12 +36,15 @@ const binusianYearOptions: SelectOption[] = Array.from(
 );
 
 const registerImage = require("../assets/images/register.png");
+const maxDescriptionWords = 40;
 
 type RegisterErrors = {
   email?: string;
   password?: string;
   whatsapp?: string;
   displayName?: string;
+  gender?: string;
+  age?: string;
   binusianYear?: string;
   major?: string;
   campus?: string;
@@ -102,6 +105,8 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [whatsapp, setWhatsapp] = useState("+62");
   const [displayName, setDisplayName] = useState("");
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
   const [binusianYear, setBinusianYear] = useState("");
   const [major, setMajor] = useState("");
   const [campus, setCampus] = useState("");
@@ -186,12 +191,30 @@ export default function RegisterScreen() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const validateAboutStep = () => {
+  const validateProfileStep = () => {
     const nextErrors: RegisterErrors = {};
 
     if (!displayName.trim()) {
       nextErrors.displayName = "Please enter your display name.";
     }
+
+    if (!gender) {
+      nextErrors.gender = "Please choose your gender.";
+    }
+
+    const numericAge = Number(age);
+    if (!age.trim()) {
+      nextErrors.age = "Please enter your age.";
+    } else if (!Number.isInteger(numericAge) || numericAge < 17 || numericAge > 60) {
+      nextErrors.age = "Age must be between 17 and 60.";
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const validateAboutStep = () => {
+    const nextErrors: RegisterErrors = {};
 
     if (!binusianYear) {
       nextErrors.binusianYear = "Please choose your Binusian year.";
@@ -255,7 +278,7 @@ export default function RegisterScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
-      aspect: [1, 1],
+      aspect: target === "main" ? [9, 16] : [1, 1],
       mediaTypes: ["images"],
       quality: 0.85,
     });
@@ -285,19 +308,25 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (activeStep === 2 && validateAboutStep()) {
+    if (activeStep === 2 && validateProfileStep()) {
       setActiveStep(3);
       setErrors({});
       return;
     }
 
-    if (activeStep === 3 && validatePhotosStep()) {
+    if (activeStep === 3 && validateAboutStep()) {
       setActiveStep(4);
       setErrors({});
       return;
     }
 
-    if (activeStep === 4 && validateVibeStep()) {
+    if (activeStep === 4 && validatePhotosStep()) {
+      setActiveStep(5);
+      setErrors({});
+      return;
+    }
+
+    if (activeStep === 5 && validateVibeStep()) {
       setIsConfirmationVisible(true);
       setErrors({});
     }
@@ -307,7 +336,7 @@ export default function RegisterScreen() {
     if (isSubmitting) return;
 
     setIsConfirmationVisible(false);
-    setActiveStep(4);
+    setActiveStep(5);
   };
 
   const handleConfirmAccount = async () => {
@@ -322,6 +351,8 @@ export default function RegisterScreen() {
         password,
         phoneNumber: whatsapp.trim(),
         displayName: displayName.trim(),
+        gender,
+        age: Number(age),
         binusianYear: Number(binusianYear),
         majorId: Number(major),
         campusId: Number(campus),
@@ -386,8 +417,18 @@ export default function RegisterScreen() {
                 setWhatsapp={setWhatsapp}
               />
             ) : activeStep === 2 ? (
+              <ProfileDetailsStep
+                displayName={displayName}
+                gender={gender}
+                age={age}
+                errors={errors}
+                clearError={clearError}
+                setDisplayName={setDisplayName}
+                setGender={setGender}
+                setAge={setAge}
+              />
+            ) : activeStep === 3 ? (
             <AboutStep
-              displayName={displayName}
               binusianYear={binusianYear}
               major={major}
               campus={campus}
@@ -397,12 +438,11 @@ export default function RegisterScreen() {
               masterDataError={masterDataError}
               errors={errors}
               clearError={clearError}
-                setDisplayName={setDisplayName}
                 setBinusianYear={setBinusianYear}
                 setMajor={setMajor}
                 setCampus={setCampus}
               />
-            ) : activeStep === 3 ? (
+            ) : activeStep === 4 ? (
               <PhotosStep
                 mainPhotoUri={mainPhotoUri}
                 extraPhotoUris={extraPhotoUris}
@@ -419,7 +459,9 @@ export default function RegisterScreen() {
                 isOptionsLoading={isMasterDataLoading}
                 optionsError={masterDataError}
                 onToggleInterest={toggleInterest}
-                onDescriptionChange={setDescription}
+                onDescriptionChange={(value) =>
+                  setDescription(limitWords(value, maxDescriptionWords))
+                }
               />
             )}
 
@@ -616,36 +658,24 @@ function ConfirmationStep({
   );
 }
 
-function AboutStep({
+function ProfileDetailsStep({
   displayName,
-  binusianYear,
-  major,
-  campus,
-  majorOptions,
-  campusOptions,
-  isMasterDataLoading,
-  masterDataError,
+  gender,
+  age,
   errors,
   clearError,
   setDisplayName,
-  setBinusianYear,
-  setMajor,
-  setCampus,
+  setGender,
+  setAge,
 }: {
   displayName: string;
-  binusianYear: string;
-  major: string;
-  campus: string;
-  majorOptions: SelectOption[];
-  campusOptions: SelectOption[];
-  isMasterDataLoading: boolean;
-  masterDataError: string;
+  gender: string;
+  age: string;
   errors: RegisterErrors;
   clearError: (field: keyof RegisterErrors) => void;
   setDisplayName: (value: string) => void;
-  setBinusianYear: (value: string) => void;
-  setMajor: (value: string) => void;
-  setCampus: (value: string) => void;
+  setGender: (value: string) => void;
+  setAge: (value: string) => void;
 }) {
   return (
     <>
@@ -659,14 +689,6 @@ function AboutStep({
       </View>
 
       <View className="mt-7 gap-4">
-        {masterDataError ? (
-          <View className="rounded-xl bg-[#FFF4F4] px-4 py-3">
-            <Text className="font-jakarta text-[11px] leading-4 text-[#D71920]">
-              {masterDataError}
-            </Text>
-          </View>
-        ) : null}
-
         <View>
           <RequiredLabel>What should we call you?</RequiredLabel>
           <TextInput
@@ -683,6 +705,112 @@ function AboutStep({
           />
           <ErrorMessage message={errors.displayName} />
         </View>
+
+        <View>
+          <RequiredLabel>Gender</RequiredLabel>
+          <View className="flex-row gap-3">
+            {["Male", "Female"].map((option) => {
+              const isSelected = gender === option;
+
+              return (
+                <Pressable
+                  key={option}
+                  className={`h-[45px] flex-1 items-center justify-center rounded-xl border ${
+                    isSelected
+                      ? "border-[#211C1D] bg-[#211C1D]"
+                      : errors.gender
+                        ? "border-[#D71920] bg-white"
+                        : "border-[#9A9A9A] bg-white"
+                  }`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  onPress={() => {
+                    setGender(option);
+                    clearError("gender");
+                  }}
+                >
+                  <Text
+                    className={`font-jakarta-semibold text-[13px] ${
+                      isSelected ? "text-white" : "text-[#171819]"
+                    }`}
+                  >
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <ErrorMessage message={errors.gender} />
+        </View>
+
+        <View>
+          <RequiredLabel>Age</RequiredLabel>
+          <TextInput
+            value={age}
+            onChangeText={(value) => {
+              setAge(value.replace(/[^0-9]/g, "").slice(0, 2));
+              clearError("age");
+            }}
+            keyboardType="number-pad"
+            placeholder="Enter your age"
+            placeholderTextColor="#8D8D8D"
+            className={`h-[45px] rounded-xl border px-4 font-jakarta text-[13px] text-[#171819] ${
+              errors.age ? "border-[#D71920]" : "border-[#9A9A9A]"
+            }`}
+          />
+          <ErrorMessage message={errors.age} />
+        </View>
+      </View>
+    </>
+  );
+}
+
+function AboutStep({
+  binusianYear,
+  major,
+  campus,
+  majorOptions,
+  campusOptions,
+  isMasterDataLoading,
+  masterDataError,
+  errors,
+  clearError,
+  setBinusianYear,
+  setMajor,
+  setCampus,
+}: {
+  binusianYear: string;
+  major: string;
+  campus: string;
+  majorOptions: SelectOption[];
+  campusOptions: SelectOption[];
+  isMasterDataLoading: boolean;
+  masterDataError: string;
+  errors: RegisterErrors;
+  clearError: (field: keyof RegisterErrors) => void;
+  setBinusianYear: (value: string) => void;
+  setMajor: (value: string) => void;
+  setCampus: (value: string) => void;
+}) {
+  return (
+    <>
+      <View className="mt-9">
+        <Text className="font-jakarta-bold text-[24px] leading-8 text-[#171819]">
+          Campus Details
+        </Text>
+        <Text className="mt-2 max-w-[280px] font-jakarta text-[12px] leading-4 text-[#777873]">
+          Tell us more about your Binusian profile!
+        </Text>
+      </View>
+
+      <View className="mt-7 gap-4">
+        {masterDataError ? (
+          <View className="rounded-xl bg-[#FFF4F4] px-4 py-3">
+            <Text className="font-jakarta text-[11px] leading-4 text-[#D71920]">
+              {masterDataError}
+            </Text>
+          </View>
+        ) : null}
 
         <DropdownField
           label="Binusian Year"
@@ -810,7 +938,8 @@ function PhotoTile({
   size?: "small" | "large";
   onPress: () => void;
 }) {
-  const tileSize = size === "large" ? "h-[92px] w-[92px]" : "h-[62px] w-[62px]";
+  const tileSize =
+    size === "large" ? "h-[160px] w-[90px]" : "h-[62px] w-[62px]";
 
   return (
     <Pressable
@@ -942,14 +1071,28 @@ function VibeStep({
           onChangeText={onDescriptionChange}
           multiline
           textAlignVertical="top"
-          maxLength={240}
           placeholder="Describe yourself..."
           placeholderTextColor="#8D8D8D"
           className="h-[132px] rounded-xl border border-[#9A9A9A] px-4 py-3 font-jakarta text-[13px] leading-5 text-[#171819]"
         />
+        <Text className="mt-2 text-right font-jakarta text-[11px] text-[#777873]">
+          {countWords(description)}/{maxDescriptionWords} words
+        </Text>
       </View>
     </>
   );
+}
+
+function limitWords(value: string, maxWords: number) {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length <= maxWords) return value;
+
+  return words.slice(0, maxWords).join(" ");
+}
+
+function countWords(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
 function DropdownField({
