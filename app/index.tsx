@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getAuthSession } from "../lib/auth/session";
+import { getValidAuthSession } from "../lib/auth/session";
 
 const welcomeImage = require("../assets/images/welcome.png");
 const titleImage = require("../assets/images/beefriends_title.png");
@@ -15,7 +15,7 @@ export default function OnboardingScreen() {
     let isMounted = true;
 
     async function redirectAuthenticatedUser() {
-      const session = await getAuthSession();
+      const session = await getValidAuthSession();
 
       if (!isMounted) return;
 
