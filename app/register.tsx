@@ -390,10 +390,10 @@ export default function RegisterScreen() {
         />
       ) : (
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="mx-auto w-full max-w-[430px] flex-1 bg-white"
         >
-          <View className="flex-1 px-5 pb-8">
+          <View className="flex-1 px-5 pb-5">
             <View className="mt-12 flex-row gap-1">
               {steps.map((step) => (
                 <View
@@ -405,69 +405,76 @@ export default function RegisterScreen() {
               ))}
             </View>
 
-            {activeStep === 1 ? (
-              <AccountStep
-                email={email}
-                password={password}
-                whatsapp={whatsapp}
-                errors={errors}
-                clearError={clearError}
-                setEmail={setEmail}
-                setPassword={setPassword}
-                setWhatsapp={setWhatsapp}
-              />
-            ) : activeStep === 2 ? (
-              <ProfileDetailsStep
-                displayName={displayName}
-                gender={gender}
-                age={age}
-                errors={errors}
-                clearError={clearError}
-                setDisplayName={setDisplayName}
-                setGender={setGender}
-                setAge={setAge}
-              />
-            ) : activeStep === 3 ? (
-            <AboutStep
-              binusianYear={binusianYear}
-              major={major}
-              campus={campus}
-              majorOptions={majorOptions}
-              campusOptions={campusOptions}
-              isMasterDataLoading={isMasterDataLoading}
-              masterDataError={masterDataError}
-              errors={errors}
-              clearError={clearError}
-                setBinusianYear={setBinusianYear}
-                setMajor={setMajor}
-                setCampus={setCampus}
-              />
-            ) : activeStep === 4 ? (
-              <PhotosStep
-                mainPhotoUri={mainPhotoUri}
-                extraPhotoUris={extraPhotoUris}
-                error={errors.mainPhoto}
-                onMainPhotoPress={() => pickPhoto("main")}
-                onExtraPhotoPress={(index) => pickPhoto(index)}
-              />
-            ) : (
-              <VibeStep
-                interests={interests}
-                interestOptions={hobbyOptions}
-                description={description}
-                error={errors.interests}
-                isOptionsLoading={isMasterDataLoading}
-                optionsError={masterDataError}
-                onToggleInterest={toggleInterest}
-                onDescriptionChange={(value) =>
-                  setDescription(limitWords(value, maxDescriptionWords))
-                }
-              />
-            )}
+            <ScrollView
+              className="flex-1"
+              contentContainerStyle={{
+                paddingBottom: activeStep === 5 ? 180 : 32,
+              }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {activeStep === 1 ? (
+                <AccountStep
+                  email={email}
+                  password={password}
+                  whatsapp={whatsapp}
+                  errors={errors}
+                  clearError={clearError}
+                  setEmail={setEmail}
+                  setPassword={setPassword}
+                  setWhatsapp={setWhatsapp}
+                />
+              ) : activeStep === 2 ? (
+                <ProfileDetailsStep
+                  displayName={displayName}
+                  gender={gender}
+                  age={age}
+                  errors={errors}
+                  clearError={clearError}
+                  setDisplayName={setDisplayName}
+                  setGender={setGender}
+                  setAge={setAge}
+                />
+              ) : activeStep === 3 ? (
+                <AboutStep
+                  binusianYear={binusianYear}
+                  major={major}
+                  campus={campus}
+                  majorOptions={majorOptions}
+                  campusOptions={campusOptions}
+                  isMasterDataLoading={isMasterDataLoading}
+                  masterDataError={masterDataError}
+                  errors={errors}
+                  clearError={clearError}
+                  setBinusianYear={setBinusianYear}
+                  setMajor={setMajor}
+                  setCampus={setCampus}
+                />
+              ) : activeStep === 4 ? (
+                <PhotosStep
+                  mainPhotoUri={mainPhotoUri}
+                  extraPhotoUris={extraPhotoUris}
+                  error={errors.mainPhoto}
+                  onMainPhotoPress={() => pickPhoto("main")}
+                  onExtraPhotoPress={(index) => pickPhoto(index)}
+                />
+              ) : (
+                <VibeStep
+                  interests={interests}
+                  interestOptions={hobbyOptions}
+                  description={description}
+                  error={errors.interests}
+                  isOptionsLoading={isMasterDataLoading}
+                  optionsError={masterDataError}
+                  onToggleInterest={toggleInterest}
+                  onDescriptionChange={(value) =>
+                    setDescription(limitWords(value, maxDescriptionWords))
+                  }
+                />
+              )}
+            </ScrollView>
 
-            <View className="flex-1" />
-
-            <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center justify-between pt-3">
               {activeStep > 1 ? (
                 <Pressable
                   className="h-[48px] w-[48px] items-center justify-center rounded-xl border border-[#211C1D] bg-white"
@@ -1070,10 +1077,11 @@ function VibeStep({
           value={description}
           onChangeText={onDescriptionChange}
           multiline
+          blurOnSubmit={false}
           textAlignVertical="top"
           placeholder="Describe yourself..."
           placeholderTextColor="#8D8D8D"
-          className="h-[132px] rounded-xl border border-[#9A9A9A] px-4 py-3 font-jakarta text-[13px] leading-5 text-[#171819]"
+          className="min-h-[132px] rounded-xl border border-[#9A9A9A] px-4 py-3 font-jakarta text-[13px] leading-5 text-[#171819]"
         />
         <Text className="mt-2 text-right font-jakarta text-[11px] text-[#777873]">
           {countWords(description)}/{maxDescriptionWords} words
