@@ -30,13 +30,23 @@ export async function requestJson<T>(
     throw new Error(message || `Request failed with status ${response.status}`);
   }
 
-  const body = (await response.json()) as T | ApiSuccessResponse<T>;
+  const body = parseJsonBody<T | ApiSuccessResponse<T>>(await response.text());
 
   if (isApiSuccessResponse<T>(body)) {
     return body.data;
   }
 
   return body;
+}
+
+function parseJsonBody<T>(body: string): T {
+  if (!body) return undefined as T;
+
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    throw new Error(body);
+  }
 }
 
 async function getErrorMessage(response: Response) {

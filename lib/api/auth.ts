@@ -14,7 +14,7 @@ import type { UserCredential } from "firebase/auth";
 import { requestJson } from "./client";
 import { getFirebaseAuth } from "../firebase/client";
 
-const FIREBASE_LOGIN_ENDPOINT = "/api/v1/user/auth/firebase-login";
+const FIREBASE_LOGIN_ENDPOINT = "/v1/user/auth/firebase-login";
 
 type RegisterAccountPayload = RegisterDto & {
   gender: string;

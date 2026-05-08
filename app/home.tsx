@@ -19,7 +19,7 @@ import {
   SettingIcon,
 } from "../components/icons";
 import { API_BASE_URL } from "../lib/api/client";
-import { clearAuthSession, getValidAuthSession } from "../lib/auth/session";
+import { getValidAuthSession } from "../lib/auth/session";
 import { discoverMatches, swipeUser } from "../lib/api/matches";
 
 export default function HomeScreen() {
@@ -86,11 +86,6 @@ export default function HomeScreen() {
     };
   }, [session?.user.id]);
 
-  const handleLogout = async () => {
-    await clearAuthSession();
-    router.replace("/");
-  };
-
   const handleSwipe = async (decision: MatchDecision) => {
     const swiperId = session?.user.id;
     const targetUserId = candidates[candidateIndex]?.id;
@@ -136,8 +131,7 @@ export default function HomeScreen() {
           <Pressable
             className="h-10 w-10 items-center justify-center"
             accessibilityRole="button"
-            accessibilityLabel="Log out"
-            onPress={handleLogout}
+            accessibilityLabel="Settings"
           >
             <SettingIcon size={22} />
           </Pressable>
