@@ -2,18 +2,27 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
-import { CardIcon, ChatIcon, HandIcon, PersonIcon } from "../components/icons";
+import { PersonIcon } from "../components/icons";
+import { BottomNav } from "../components/BottomNav";
+import { SkeletonBlock } from "../components/SkeletonBlock";
 import { API_BASE_URL } from "../lib/api/client";
 import { getValidAuthSession } from "../lib/auth/session";
-import { getCurrentUserProfile } from "../lib/api/users";
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfileDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imageFailed, setImageFailed] = useState(false);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -40,7 +49,7 @@ export default function ProfileScreen() {
   }, []);
 
   if (isLoading) {
-    return <SafeAreaView className="flex-1 bg-white" />;
+    return <ProfileSkeleton />;
   }
 
   const photoUri = getProfilePhotoUri(profile);
@@ -59,7 +68,13 @@ export default function ProfileScreen() {
           contentContainerClassName="pb-5"
           showsVerticalScrollIndicator={false}
         >
-          <View className="h-[292px] w-full bg-[#F1F1F1]">
+          <Pressable
+            className="h-[292px] w-full bg-[#F1F1F1]"
+            accessibilityRole={photoUri && !imageFailed ? "imagebutton" : "image"}
+            onPress={() => {
+              if (photoUri && !imageFailed) setPreviewUri(photoUri);
+            }}
+          >
             {photoUri && !imageFailed ? (
               <Image
                 source={{ uri: photoUri }}
@@ -72,7 +87,7 @@ export default function ProfileScreen() {
                 <PersonIcon color="#777873" size={64} />
               </View>
             )}
-          </View>
+          </Pressable>
 
           <View className="px-5 pt-4">
             <View className="self-start rounded-full bg-[#7AE4F0] px-2 py-1">
@@ -108,6 +123,7 @@ export default function ProfileScreen() {
             <Pressable
               className="mt-4 h-9 w-[132px] flex-row items-center justify-center rounded-full bg-black"
               accessibilityRole="button"
+              onPress={() => router.push("/edit-profile")}
             >
               <Ionicons name="pencil" size={14} color="#FFFFFF" />
               <Text className="ml-2 font-jakarta-bold text-[13px] text-white">
@@ -123,12 +139,16 @@ export default function ProfileScreen() {
 
             <View className="mt-3 flex-row gap-3">
               {galleryPhotos.map((photo) => (
-                <PhotoTile key={photo.id} uri={normalizePhotoUri(photo.url)} />
+                <PhotoTile
+                  key={photo.id}
+                  uri={normalizePhotoUri(photo.url)}
+                  onPress={setPreviewUri}
+                />
               ))}
               {Array.from({
                 length: Math.max(0, 3 - galleryPhotos.length),
               }).map((_, index) => (
-                <PhotoTile key={`empty-${index}`} />
+                <PhotoTile key={`empty-${index}`} onPress={setPreviewUri} />
               ))}
             </View>
 
@@ -157,28 +177,85 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
 
-        <View className="h-[62px] flex-row items-center justify-around border-t border-[#F1F1F1] bg-white">
-          <TabItem icon="card" label="Explore" onPress={() => router.push("/home")} />
-          <TabItem
-            icon="hand"
-            label="Matches"
-            onPress={() => router.push("/matches")}
-          />
-          <TabItem
-            icon="chat"
-            label="Chat"
-            onPress={() => router.push("/chat")}
-          />
-          <TabItem icon="person" label="Profile" active />
-        </View>
+        <BottomNav active="profile" bordered />
+      </View>
+
+      <ImagePreviewModal
+        uri={previewUri}
+        onClose={() => setPreviewUri(null)}
+      />
+    </SafeAreaView>
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <StatusBar style="dark" />
+      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="pb-5"
+          showsVerticalScrollIndicator={false}
+        >
+          <SkeletonBlock className="h-[292px] w-full rounded-none" />
+
+          <View className="px-5 pt-4">
+            <SkeletonBlock className="h-5 w-[138px] rounded-full" />
+
+            <View className="mt-4 flex-row items-center gap-2">
+              <SkeletonBlock className="h-8 w-[168px] rounded-lg" />
+              <SkeletonBlock className="h-7 w-[54px] rounded-full" />
+            </View>
+
+            <SkeletonBlock className="mt-2 h-4 w-[210px] rounded-md" />
+            <SkeletonBlock className="mt-2 h-4 w-[150px] rounded-md" />
+            <SkeletonBlock className="mt-4 h-9 w-[132px] rounded-full" />
+
+            <View className="mt-5 h-px bg-[#E5E5E5]" />
+
+            <SkeletonBlock className="mt-4 h-6 w-[74px] rounded-md" />
+
+            <View className="mt-3 flex-row gap-3">
+              <SkeletonBlock className="h-[58px] w-[58px] rounded-xl" />
+              <SkeletonBlock className="h-[58px] w-[58px] rounded-xl" />
+              <SkeletonBlock className="h-[58px] w-[58px] rounded-xl" />
+            </View>
+
+            <SkeletonBlock className="mt-4 h-6 w-[48px] rounded-md" />
+            <SkeletonBlock className="mt-3 h-4 w-full rounded-md" />
+            <SkeletonBlock className="mt-2 h-4 w-[86%] rounded-md" />
+
+            <View className="mt-4 flex-row gap-2">
+              <SkeletonBlock className="h-7 w-[72px] rounded-full" />
+              <SkeletonBlock className="h-7 w-[88px] rounded-full" />
+              <SkeletonBlock className="h-7 w-[64px] rounded-full" />
+            </View>
+          </View>
+        </ScrollView>
+
+        <BottomNav active="profile" bordered />
       </View>
     </SafeAreaView>
   );
 }
 
-function PhotoTile({ uri }: { uri?: string }) {
+function PhotoTile({
+  uri,
+  onPress,
+}: {
+  uri?: string;
+  onPress: (uri: string) => void;
+}) {
   return (
-    <View className="h-[58px] w-[58px] overflow-hidden rounded-xl bg-[#F1F1F1]">
+    <Pressable
+      className="h-[58px] w-[58px] overflow-hidden rounded-xl bg-[#F1F1F1]"
+      accessibilityRole={uri ? "imagebutton" : "button"}
+      disabled={!uri}
+      onPress={() => {
+        if (uri) onPress(uri);
+      }}
+    >
       {uri ? (
         <Image source={{ uri }} className="h-full w-full" resizeMode="cover" />
       ) : (
@@ -186,69 +263,49 @@ function PhotoTile({ uri }: { uri?: string }) {
           <Ionicons name="add" size={25} color="#777873" />
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
-function TabItem({
-  icon,
-  label,
-  active = false,
-  onPress,
+function ImagePreviewModal({
+  uri,
+  onClose,
 }: {
-  icon: "card" | "hand" | "chat" | "person";
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
+  uri: string | null;
+  onClose: () => void;
 }) {
-  const color = active ? "#252D36" : "#777873";
-
   return (
-    <Pressable
-      className="min-w-[58px] items-center"
-      accessibilityRole="button"
-      onPress={onPress}
+    <Modal
+      animationType="fade"
+      transparent
+      visible={Boolean(uri)}
+      onRequestClose={onClose}
     >
-      <View className="h-8 items-center justify-center">
-        {icon === "card" && (
-          <CardIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
-        {icon === "hand" && (
-          <HandIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : undefined}
-            size={28}
-          />
-        )}
-        {icon === "chat" && (
-          <ChatIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
-        {icon === "person" && (
-          <PersonIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
+      <View className="flex-1 bg-black/95">
+        <SafeAreaView className="flex-1">
+          <View className="h-14 flex-row items-center justify-end px-4">
+            <Pressable
+              className="h-10 w-10 items-center justify-center rounded-full bg-white/15"
+              accessibilityRole="button"
+              accessibilityLabel="Close image preview"
+              onPress={onClose}
+            >
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
+          <Pressable className="flex-1 items-center justify-center" onPress={onClose}>
+            {uri ? (
+              <Image
+                source={{ uri }}
+                className="h-full w-full"
+                resizeMode="contain"
+              />
+            ) : null}
+          </Pressable>
+        </SafeAreaView>
       </View>
-      <Text
-        className={`mt-1 text-[12px] ${
-          active
-            ? "font-jakarta-bold text-[#252D36]"
-            : "font-jakarta-semibold text-[#777873]"
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
+    </Modal>
   );
 }
 
