@@ -1,0 +1,796 @@
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type {
+  ConversationWithMessagesDto,
+  MessageDto,
+} from "@beefriends/shared-kernel/dto/chat";
+import { ChatIcon } from "../components/icons";
+import { SkeletonBlock } from "../components/SkeletonBlock";
+import { ToastBanner, useToast } from "../components/ToastBanner";
+import { API_BASE_URL } from "../lib/api/client";
+import {
+  getConversationWithMessages,
+  sendMessage,
+} from "../lib/api/conversations";
+import { getUserPresence } from "../lib/api/presence";
+import { getValidAuthSession } from "../lib/auth/session";
+
+const emojiCategories = [
+  {
+    id: "recent",
+    icon: "time-outline",
+    label: "Recent",
+    emojis: [
+      "\uD83D\uDE0A",
+      "\uD83D\uDE02",
+      "\uD83D\uDE0D",
+      "\uD83D\uDD25",
+      "\uD83D\uDE4C",
+      "\u2728",
+      "\uD83D\uDC4B",
+      "\uD83D\uDC4D",
+      "\uD83E\uDD79",
+      "\uD83D\uDC9B",
+    ],
+  },
+  {
+    id: "smileys",
+    icon: "happy-outline",
+    label: "Smileys",
+    emojis: [
+      "\uD83D\uDE00",
+      "\uD83D\uDE03",
+      "\uD83D\uDE04",
+      "\uD83D\uDE01",
+      "\uD83D\uDE06",
+      "\uD83D\uDE05",
+      "\uD83E\uDD23",
+      "\uD83D\uDE02",
+      "\uD83D\uDE42",
+      "\uD83D\uDE09",
+      "\uD83D\uDE0C",
+      "\uD83D\uDE0D",
+      "\uD83E\uDD70",
+      "\uD83D\uDE18",
+      "\uD83D\uDE0B",
+      "\uD83D\uDE1C",
+      "\uD83E\uDD2A",
+      "\uD83E\uDD73",
+      "\uD83E\uDD79",
+      "\uD83D\uDE2D",
+      "\uD83D\uDE24",
+      "\uD83D\uDE31",
+      "\uD83E\uDD14",
+      "\uD83D\uDE34",
+    ],
+  },
+  {
+    id: "hands",
+    icon: "hand-left-outline",
+    label: "Hands",
+    emojis: [
+      "\uD83D\uDC4B",
+      "\uD83E\uDD1A",
+      "\uD83D\uDD90\uFE0F",
+      "\u270B",
+      "\uD83D\uDC4C",
+      "\uD83E\uDD0C",
+      "\uD83E\uDD1E",
+      "\uD83E\uDEF0",
+      "\uD83D\uDC4D",
+      "\uD83D\uDC4E",
+      "\uD83D\uDC4F",
+      "\uD83D\uDE4C",
+      "\uD83E\uDD32",
+      "\uD83D\uDE4F",
+      "\uD83D\uDCAA",
+      "\uD83E\uDD1D",
+    ],
+  },
+  {
+    id: "hearts",
+    icon: "heart-outline",
+    label: "Love",
+    emojis: [
+      "\uD83D\uDC9B",
+      "\u2764\uFE0F",
+      "\uD83E\uDDE1",
+      "\uD83D\uDC9A",
+      "\uD83D\uDC99",
+      "\uD83D\uDC9C",
+      "\uD83D\uDDA4",
+      "\uD83E\uDD0D",
+      "\uD83D\uDC8C",
+      "\uD83D\uDC98",
+      "\uD83D\uDC9D",
+      "\uD83D\uDC96",
+      "\uD83D\uDC97",
+      "\uD83D\uDC93",
+      "\uD83D\uDC95",
+      "\uD83D\uDC9E",
+    ],
+  },
+  {
+    id: "food",
+    icon: "fast-food-outline",
+    label: "Food",
+    emojis: [
+      "\u2615",
+      "\uD83C\uDF75",
+      "\uD83E\uDD64",
+      "\uD83C\uDF70",
+      "\uD83C\uDF55",
+      "\uD83C\uDF54",
+      "\uD83C\uDF5F",
+      "\uD83C\uDF5C",
+      "\uD83C\uDF63",
+      "\uD83C\uDF66",
+      "\uD83C\uDF6A",
+      "\uD83C\uDF6B",
+    ],
+  },
+  {
+    id: "activity",
+    icon: "football-outline",
+    label: "Fun",
+    emojis: [
+      "\u26BD",
+      "\uD83C\uDFC0",
+      "\uD83C\uDFB5",
+      "\uD83C\uDFA7",
+      "\uD83C\uDFAE",
+      "\uD83C\uDFAC",
+      "\uD83D\uDCF8",
+      "\uD83C\uDF89",
+      "\uD83D\uDD25",
+      "\u2728",
+      "\uD83C\uDF1F",
+      "\uD83D\uDCAF",
+    ],
+  },
+] as const;
+
+export default function ChatRoomScreen() {
+  const params = useLocalSearchParams<{
+    conversationId?: string;
+    name?: string;
+    participantId?: string;
+    photoUrl?: string;
+  }>();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const conversationId = Array.isArray(params.conversationId)
+    ? params.conversationId[0]
+    : params.conversationId;
+  const routeName = Array.isArray(params.name) ? params.name[0] : params.name;
+  const routePhotoUrl = Array.isArray(params.photoUrl)
+    ? params.photoUrl[0]
+    : params.photoUrl;
+  const participantIdParam = Array.isArray(params.participantId)
+    ? params.participantId[0]
+    : params.participantId;
+  const participantId = participantIdParam ? Number(participantIdParam) : null;
+
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [conversation, setConversation] =
+    useState<ConversationWithMessagesDto | null>(null);
+  const [messages, setMessages] = useState<MessageDto[]>([]);
+  const [messageText, setMessageText] = useState("");
+  const [selectedImageUri, setSelectedImageUri] = useState("");
+  const [isEmojiTrayOpen, setIsEmojiTrayOpen] = useState(false);
+  const [activeEmojiCategoryId, setActiveEmojiCategoryId] =
+    useState<(typeof emojiCategories)[number]["id"]>("recent");
+  const [isParticipantOnline, setIsParticipantOnline] = useState<boolean | null>(
+    null,
+  );
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const { toast, showToast, hideToast } = useToast();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadConversation() {
+      const session = await getValidAuthSession();
+
+      if (!session) {
+        router.replace("/");
+        return;
+      }
+
+      if (!conversationId) {
+        router.back();
+        return;
+      }
+
+      setCurrentUserId(session.user.id);
+
+      try {
+        const nextConversation =
+          await getConversationWithMessages(conversationId);
+
+        if (!isMounted) return;
+
+        setConversation(nextConversation);
+        setMessages(nextConversation.messages ?? []);
+      } catch (error) {
+        showToast({
+          title: "Failed to open chat",
+          message: getErrorMessage(error),
+        });
+        router.back();
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadConversation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [conversationId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPresence() {
+      if (!participantId || Number.isNaN(participantId)) return;
+
+      try {
+        const presence = await getUserPresence(participantId);
+
+        if (!isMounted) return;
+
+        setIsParticipantOnline(presence.isOnline);
+      } catch {
+        if (isMounted) setIsParticipantOnline(null);
+      }
+    }
+
+    loadPresence();
+    const intervalId = setInterval(loadPresence, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [participantId]);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  }, [messages.length]);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardOpen(true);
+      setIsEmojiTrayOpen(false);
+      requestAnimationFrame(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      });
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardOpen(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const title = useMemo(
+    () => routeName || conversation?.name || "Chat",
+    [conversation?.name, routeName],
+  );
+  const headerPhotoUrl = normalizeAttachmentUri(routePhotoUrl || "");
+  const activeEmojiCategory =
+    emojiCategories.find((category) => category.id === activeEmojiCategoryId) ??
+    emojiCategories[0];
+
+  const handleSend = async () => {
+    const content = messageText.trim();
+
+    if (
+      !conversationId ||
+      !currentUserId ||
+      (!content && !selectedImageUri) ||
+      isSending
+    ) {
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      const nextMessage = await sendMessage({
+        conversationId,
+        content: content || "Photo",
+        attachmentUrls: selectedImageUri ? [selectedImageUri] : undefined,
+      }, currentUserId);
+
+      setMessages((currentMessages) => [...currentMessages, nextMessage]);
+      setMessageText("");
+      setSelectedImageUri("");
+      setIsEmojiTrayOpen(false);
+    } catch (error) {
+      showToast({
+        title: "Failed to send message",
+        message: getErrorMessage(error),
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      showToast({
+        title: "Photo access needed",
+        message: "Please allow photo access to send images.",
+        kind: "info",
+      });
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.85,
+    });
+
+    if (result.canceled) return;
+
+    setSelectedImageUri(result.assets[0]?.uri ?? "");
+  };
+
+  const addEmoji = (emoji: string) => {
+    setMessageText((currentText) => `${currentText}${emoji}`);
+  };
+
+  const toggleEmojiTray = () => {
+    Keyboard.dismiss();
+    setIsEmojiTrayOpen((isOpen) => !isOpen);
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <StatusBar style="dark" />
+      <ToastBanner toast={toast} onDismiss={hideToast} />
+      <KeyboardAvoidingView
+        className="mx-auto w-full max-w-[430px] flex-1 bg-white"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+      >
+        <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
+          <Pressable
+            className="h-10 w-10 items-center justify-center rounded-full bg-[#F5F5F5]"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={22} color="#171819" />
+          </Pressable>
+
+          <View className="ml-3 h-11 w-11">
+            <View className="h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#FFF7B8]">
+              {headerPhotoUrl ? (
+                <Image
+                  source={{ uri: headerPhotoUrl }}
+                  className="h-full w-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text className="font-jakarta-bold text-[16px] text-[#171819]">
+                  {getInitial(title)}
+                </Text>
+              )}
+            </View>
+            <View
+              className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${
+                isParticipantOnline ? "bg-[#21C45D]" : "bg-[#C9C9C9]"
+              }`}
+            />
+          </View>
+
+          <View className="ml-3 flex-1 justify-center">
+            <View className="flex-row items-center">
+              <Text
+                className="max-w-[210px] font-jakarta-bold text-[17px] text-[#171819]"
+                numberOfLines={1}
+              >
+                {title}
+              </Text>
+            </View>
+            <View className="mt-[3px] flex-row items-center">
+              <Text className="font-jakarta text-[11px] text-[#777873]">
+                {isParticipantOnline === null
+                  ? "BeeFriends chat"
+                  : isParticipantOnline
+                    ? "Online"
+                    : "Offline"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {isLoading ? (
+          <ChatRoomSkeleton />
+        ) : messages.length === 0 ? (
+          <ChatRoomEmptyState />
+        ) : (
+          <ScrollView
+            ref={scrollViewRef}
+            className="flex-1 bg-[#FAFAFA] px-4"
+            contentContainerClassName={`pt-5 ${isKeyboardOpen ? "pb-3" : "pb-5"}`}
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() =>
+              scrollViewRef.current?.scrollToEnd({ animated: true })
+            }
+          >
+            <View className="mb-5 self-center rounded-full bg-white px-3 py-1 shadow-sm">
+              <Text className="font-jakarta-semibold text-[11px] text-[#777873]">
+                Today
+              </Text>
+            </View>
+            {messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                isMine={message.senderId === currentUserId}
+                participantId={participantId}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        <View
+          className={`border-t border-[#F1F1F1] bg-white px-4 pt-3 ${
+            isKeyboardOpen ? "pb-2" : "pb-4"
+          }`}
+        >
+          {selectedImageUri ? (
+            <View className="mb-3 flex-row items-center rounded-3xl bg-[#F7F7F7] p-2">
+              <View className="overflow-hidden rounded-2xl bg-[#F1F1F1]">
+                <Image
+                  source={{ uri: selectedImageUri }}
+                  className="h-16 w-16"
+                  resizeMode="cover"
+                />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="font-jakarta-bold text-[13px] text-[#171819]">
+                  Image ready
+                </Text>
+                <Text className="mt-1 font-jakarta text-[11px] text-[#777873]">
+                  Add a message or send it now.
+                </Text>
+              </View>
+              <Pressable
+                className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                accessibilityRole="button"
+                onPress={() => setSelectedImageUri("")}
+              >
+                <Ionicons name="close" size={17} color="#171819" />
+              </Pressable>
+            </View>
+          ) : null}
+
+          {isEmojiTrayOpen ? (
+            <EmojiPanel
+              activeCategoryId={activeEmojiCategoryId}
+              activeEmojis={activeEmojiCategory.emojis}
+              onSelectCategory={setActiveEmojiCategoryId}
+              onSelectEmoji={addEmoji}
+            />
+          ) : null}
+
+          <View className="flex-row items-end">
+            <Pressable
+              className="mr-2 h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F5]"
+              accessibilityRole="button"
+              onPress={pickImage}
+            >
+              <Ionicons name="image-outline" size={21} color="#171819" />
+            </Pressable>
+
+            <View className="min-h-11 flex-1 flex-row items-end rounded-[22px] bg-[#F5F5F5] px-2 py-1">
+              <Pressable
+                className={`h-9 w-9 items-center justify-center rounded-full ${
+                  isEmojiTrayOpen ? "bg-[#FFE036]" : "bg-white"
+                }`}
+                accessibilityRole="button"
+                onPress={toggleEmojiTray}
+              >
+                <Ionicons name="happy-outline" size={20} color="#171819" />
+              </Pressable>
+              <TextInput
+                value={messageText}
+                multiline
+                placeholder="Message"
+                placeholderTextColor="#8D8D8D"
+                className="max-h-28 flex-1 px-3 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
+                textAlignVertical="center"
+                onFocus={() => {
+                  setIsEmojiTrayOpen(false);
+                  requestAnimationFrame(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  });
+                }}
+                onChangeText={setMessageText}
+              />
+            </View>
+
+            <Pressable
+              className={`ml-2 h-11 w-11 items-center justify-center rounded-full ${
+                (messageText.trim() || selectedImageUri) && !isSending
+                  ? "bg-[#171819]"
+                  : "bg-[#D9D9D9]"
+              }`}
+              accessibilityRole="button"
+              disabled={(!messageText.trim() && !selectedImageUri) || isSending}
+              onPress={handleSend}
+            >
+              {isSending ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Ionicons name="send" size={16} color="#FFFFFF" />
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function MessageBubble({
+  message,
+  isMine,
+  participantId,
+}: {
+  message: MessageDto;
+  isMine: boolean;
+  participantId: number | null;
+}) {
+  const attachmentUrls = message.attachmentUrls ?? [];
+  const textContent =
+    attachmentUrls.length > 0 && message.content === "Photo"
+      ? ""
+      : message.content;
+
+  return (
+    <View className={`mb-3 ${isMine ? "items-end" : "items-start"}`}>
+      <View
+        className={`max-w-[80%] overflow-hidden rounded-[22px] ${
+          isMine
+            ? "rounded-br-md bg-[#171819]"
+            : "rounded-bl-md bg-white"
+        }`}
+      >
+        {textContent ? (
+          <Text
+            className={`px-4 py-3 font-jakarta text-[14px] leading-5 ${
+              isMine ? "text-white" : "text-[#171819]"
+            }`}
+          >
+            {textContent}
+          </Text>
+        ) : null}
+        {attachmentUrls.length ? (
+          <View className={textContent ? "px-2 pb-2" : "p-1"}>
+            {attachmentUrls.map((attachmentUrl) => (
+              <Image
+                key={attachmentUrl}
+                source={{ uri: normalizeAttachmentUri(attachmentUrl) }}
+                className="h-56 w-56 rounded-[18px]"
+                resizeMode="cover"
+              />
+            ))}
+          </View>
+        ) : null}
+      </View>
+      <MessageMeta
+        isMine={isMine}
+        isRead={Boolean(participantId && message.readBy?.includes(participantId))}
+        time={formatMessageTime(message.timestamp || message.createdAt)}
+      />
+    </View>
+  );
+}
+
+function MessageMeta({
+  isMine,
+  isRead,
+  time,
+}: {
+  isMine: boolean;
+  isRead: boolean;
+  time: string;
+}) {
+  return (
+    <View className="mt-1 flex-row items-center px-1">
+      <Text className="font-jakarta text-[10px] text-[#9A9A9A]">{time}</Text>
+      {isMine ? (
+        <View className="ml-2 flex-row items-center">
+          <Ionicons
+            name={isRead ? "checkmark-done" : "checkmark"}
+            size={13}
+            color={isRead ? "#2F80ED" : "#9A9A9A"}
+          />
+          <Text
+            className={`ml-1 font-jakarta text-[10px] ${
+              isRead ? "text-[#2F80ED]" : "text-[#9A9A9A]"
+            }`}
+          >
+            {isRead ? "Read" : "Sent"}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function EmojiPanel({
+  activeCategoryId,
+  activeEmojis,
+  onSelectCategory,
+  onSelectEmoji,
+}: {
+  activeCategoryId: (typeof emojiCategories)[number]["id"];
+  activeEmojis: readonly string[];
+  onSelectCategory: (categoryId: (typeof emojiCategories)[number]["id"]) => void;
+  onSelectEmoji: (emoji: string) => void;
+}) {
+  return (
+    <View className="mb-3 overflow-hidden rounded-[26px] bg-[#F7F7F7]">
+      <View className="border-b border-[#ECECEC] px-3 py-3">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="flex-row gap-2">
+            {emojiCategories.map((category) => {
+              const isActive = category.id === activeCategoryId;
+
+              return (
+                <Pressable
+                  key={category.id}
+                  className={`h-10 min-w-10 flex-row items-center justify-center rounded-full px-3 ${
+                    isActive ? "bg-[#FFE036]" : "bg-white"
+                  }`}
+                  accessibilityRole="button"
+                  onPress={() => onSelectCategory(category.id)}
+                >
+                  <Ionicons
+                    name={category.icon}
+                    size={18}
+                    color={isActive ? "#171819" : "#777873"}
+                  />
+                  {isActive ? (
+                    <Text className="ml-2 font-jakarta-bold text-[12px] text-[#171819]">
+                      {category.label}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+
+      <ScrollView
+        className="max-h-[238px]"
+        contentContainerClassName="flex-row flex-wrap px-3 pb-4 pt-3"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {activeEmojis.map((emoji, index) => (
+          <Pressable
+            key={`${emoji}-${index}`}
+            className="h-12 w-[12.5%] items-center justify-center"
+            accessibilityRole="button"
+            onPress={() => onSelectEmoji(emoji)}
+          >
+            <Text className="text-[26px]">{emoji}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function normalizeAttachmentUri(uri: string) {
+  if (!uri) return "";
+
+  if (
+    uri.startsWith("http://") ||
+    uri.startsWith("https://") ||
+    uri.startsWith("file://") ||
+    uri.startsWith("content://") ||
+    uri.startsWith("data:")
+  ) {
+    return uri;
+  }
+
+  if (uri.startsWith("/")) {
+    return `${API_BASE_URL}${uri}`;
+  }
+
+  return uri;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Please try again.";
+}
+
+function getInitial(value: string) {
+  return value.trim().charAt(0).toUpperCase() || "B";
+}
+
+function ChatRoomEmptyState() {
+  return (
+    <View className="flex-1 items-center justify-center px-8">
+      <View className="h-16 w-16 items-center justify-center rounded-full bg-[#FFF7B8]">
+        <ChatIcon color="#252D36" fillColor="#FFEA00" size={34} />
+      </View>
+      <Text className="mt-5 text-center font-jakarta-bold text-[22px] leading-7 text-[#171819]">
+        Start the chat
+      </Text>
+      <Text className="mt-2 text-center font-jakarta text-[13px] leading-5 text-[#777873]">
+        Send the first message and keep the match warm.
+      </Text>
+    </View>
+  );
+}
+
+function ChatRoomSkeleton() {
+  return (
+    <View className="flex-1 px-5 pt-5">
+      <SkeletonBlock className="h-10 w-[58%] rounded-3xl" />
+      <SkeletonBlock className="ml-auto mt-4 h-12 w-[72%] rounded-3xl" />
+      <SkeletonBlock className="mt-4 h-12 w-[66%] rounded-3xl" />
+      <SkeletonBlock className="ml-auto mt-4 h-10 w-[46%] rounded-3xl" />
+    </View>
+  );
+}
+
+function formatMessageTime(value: Date | string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
