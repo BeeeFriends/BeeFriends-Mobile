@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@beefriends/shared-kernel": "^3.0.4",
+    "@beefriends/shared-kernel": "^4.0.0",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.1.33",
@@ -20,6 +20,7 @@
     "expo-font": "~55.0.4",
     "expo-image-picker": "~55.0.19",
     "expo-linking": "~55.0.8",
+    "expo-notifications": "~55.0.22",
     "expo-router": "~55.0.7",
     "expo-splash-screen": "~55.0.12",
     "expo-status-bar": "~55.0.4",

@@ -4,6 +4,7 @@
     "slug": "beefriends",
     "version": "1.0.0",
     "orientation": "portrait",
+    "newArchEnabled": false,
     "icon": "./assets/images/beefriends_logo.png",
     "scheme": "beefriendsfe",
     "userInterfaceStyle": "light",
@@ -29,7 +30,7 @@
       "output": "static",
       "favicon": "./assets/images/beefriends_logo.png"
     },
-    "plugins": ["expo-router", "expo-font"],
+    "plugins": ["expo-router", "expo-font", "expo-notifications"],
     "experiments": {
       "typedRoutes": true
     }
