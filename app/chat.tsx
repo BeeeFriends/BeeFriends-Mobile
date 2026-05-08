@@ -1,17 +1,25 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { ConversationDto } from "@beefriends/shared-kernel/dto/chat";
+import type {
+  ConversationDto,
+  MatchDto,
+} from "@beefriends/shared-kernel/dto/chat";
 import {
-  CardIcon,
   ChatIcon,
-  HandIcon,
+  NotificationIcon,
   PersonIcon,
   SearchIcon,
 } from "../components/icons";
+import { BottomNav } from "../components/BottomNav";
+import { SkeletonBlock } from "../components/SkeletonBlock";
+import { API_BASE_URL } from "../lib/api/client";
 import { getUserConversations } from "../lib/api/conversations";
+import { getUserMatches } from "../lib/api/matches";
+import { getBatchPresence } from "../lib/api/presence";
 import { getValidAuthSession } from "../lib/auth/session";
 
 type ChatItem = {
@@ -20,11 +28,19 @@ type ChatItem = {
   preview: string;
   time: string;
   photoUrl: string;
+  otherUserId: number | null;
+  isOnline: boolean | null;
+  isLastMessageMine: boolean;
+  isLastMessageRead: boolean;
 };
 
 export default function ChatScreen() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [conversations, setConversations] = useState<ConversationDto[]>([]);
+  const [matches, setMatches] = useState<MatchDto[]>([]);
+  const [presenceByUserId, setPresenceByUserId] = useState<
+    Record<number, boolean>
+  >({});
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -42,11 +58,31 @@ export default function ChatScreen() {
       setCurrentUserId(session.user.id);
 
       try {
-        const nextConversations = await getUserConversations(session.user.id);
+        const [nextConversations, nextMatches] = await Promise.all([
+          getUserConversations(session.user.id),
+          getUserMatches(session.user.id).catch(() => []),
+        ]);
+        const participantIds = nextConversations
+          .flatMap(
+            (conversation) =>
+              conversation.participantIds ?? conversation.participants,
+          )
+          .filter((userId) => userId !== session.user.id);
+        const uniqueParticipantIds = Array.from(new Set(participantIds));
+        const nextPresence = uniqueParticipantIds.length
+          ? await getBatchPresence(uniqueParticipantIds).catch(() => [])
+          : [];
 
         if (!isMounted) return;
 
         setConversations(nextConversations);
+        setMatches(nextMatches);
+        setPresenceByUserId(
+          nextPresence.reduce<Record<number, boolean>>((presenceMap, presence) => {
+            presenceMap[presence.userId] = presence.isOnline;
+            return presenceMap;
+          }, {}),
+        );
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -62,20 +98,33 @@ export default function ChatScreen() {
   const chatItems = useMemo(
     () =>
       conversations
-        .map((conversation) => toChatItem(conversation, currentUserId))
+        .map((conversation) =>
+          toChatItem(conversation, currentUserId, presenceByUserId, matches),
+        )
+        .filter((item): item is ChatItem => Boolean(item))
         .filter((item) =>
           item.name.toLowerCase().includes(query.trim().toLowerCase()),
         ),
-    [conversations, currentUserId, query],
+    [conversations, currentUserId, matches, presenceByUserId, query],
   );
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
       <View className="mx-auto w-full max-w-[430px] flex-1 bg-white px-5 pt-8">
-        <Text className="font-jakarta-bold text-[24px] text-[#171819]">
-          Chat
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="font-jakarta-bold text-[24px] text-[#171819]">
+            Chat
+          </Text>
+          <Pressable
+            className="h-8 w-8 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            onPress={() => router.push("/notifications" as never)}
+          >
+            <NotificationIcon size={17} />
+          </Pressable>
+        </View>
 
         <View className="mt-5 h-12 flex-row items-center rounded-full bg-[#F5F5F5] px-4">
           <SearchIcon color="#171819" size={15} />
@@ -94,44 +143,89 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
         >
           {isLoading ? (
-            <Text className="font-jakarta text-[13px] text-[#777873]">
-              Loading chats...
-            </Text>
+            <ChatListSkeleton />
           ) : chatItems.length === 0 ? (
-            <Text className="font-jakarta text-[13px] text-[#777873]">
-              No chats found.
-            </Text>
+            <ChatEmptyState />
           ) : (
             chatItems.map((item) => <ChatRow key={item.id} item={item} />)
           )}
         </ScrollView>
 
-        <View className="h-[62px] flex-row items-center justify-around border-t border-[#F1F1F1] bg-white">
-          <TabItem icon="card" label="Explore" onPress={() => router.push("/home")} />
-          <TabItem icon="hand" label="Matches" onPress={() => router.push("/matches")} />
-          <TabItem icon="chat" label="Chat" active />
-          <TabItem icon="person" label="Profile" onPress={() => router.push("/profile")} />
-        </View>
+        <BottomNav active="chat" bordered />
       </View>
     </SafeAreaView>
   );
 }
 
+function ChatEmptyState() {
+  return (
+    <View className="h-[430px] items-center justify-center px-8">
+      <View className="h-16 w-16 items-center justify-center rounded-full bg-[#FFF7B8]">
+        <ChatIcon color="#252D36" fillColor="#FFEA00" size={34} />
+      </View>
+      <Text className="mt-5 text-center font-jakarta-bold text-[22px] leading-7 text-[#171819]">
+        No chats yet
+      </Text>
+      <Text className="mt-2 text-center font-jakarta text-[13px] leading-5 text-[#777873]">
+        Your conversations will show up here after you match and start talking.
+      </Text>
+    </View>
+  );
+}
+
+function ChatListSkeleton() {
+  return (
+    <View>
+      {Array.from({ length: 7 }).map((_, index) => (
+        <View key={index} className="h-[64px] flex-row items-center">
+          <SkeletonBlock className="h-12 w-12 rounded-full" />
+          <View className="ml-3 flex-1">
+            <SkeletonBlock className="h-5 w-[54%] rounded-md" />
+            <SkeletonBlock className="mt-2 h-4 w-[86%] rounded-md" />
+          </View>
+          <SkeletonBlock className="ml-2 h-3 w-9 self-start rounded-md" />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function ChatRow({ item }: { item: ChatItem }) {
   return (
-    <Pressable className="h-[64px] flex-row items-center" accessibilityRole="button">
-      <View className="h-12 w-12 overflow-hidden rounded-full bg-[#F1F1F1]">
-        {item.photoUrl ? (
-          <Image
-            source={{ uri: item.photoUrl }}
-            className="h-full w-full"
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="h-full w-full items-center justify-center">
-            <PersonIcon color="#777873" size={26} />
-          </View>
-        )}
+    <Pressable
+      className="h-[64px] flex-row items-center"
+      accessibilityRole="button"
+      onPress={() =>
+        router.push({
+          pathname: "/chat-room",
+          params: {
+            conversationId: item.id,
+            name: item.name,
+            participantId: item.otherUserId ? String(item.otherUserId) : "",
+            photoUrl: item.photoUrl,
+          },
+        })
+      }
+    >
+      <View className="h-12 w-12">
+        <View className="h-full w-full overflow-hidden rounded-full bg-[#F1F1F1]">
+          {item.photoUrl ? (
+            <Image
+              source={{ uri: item.photoUrl }}
+              className="h-full w-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="h-full w-full items-center justify-center">
+              <PersonIcon color="#777873" size={26} />
+            </View>
+          )}
+        </View>
+        <View
+          className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${
+            item.isOnline ? "bg-[#21C45D]" : "bg-[#C9C9C9]"
+          }`}
+        />
       </View>
 
       <View className="ml-3 flex-1">
@@ -141,12 +235,30 @@ function ChatRow({ item }: { item: ChatItem }) {
         >
           {item.name}
         </Text>
-        <Text
-          className="mt-1 font-jakarta text-[13px] text-[#8D8D8D]"
-          numberOfLines={1}
-        >
-          {item.preview}
-        </Text>
+        <View className="mt-1 flex-row items-center">
+          {item.isLastMessageMine ? (
+            <View className="mr-2 flex-row items-center">
+              <Ionicons
+                name={item.isLastMessageRead ? "checkmark-done" : "checkmark"}
+                size={13}
+                color={item.isLastMessageRead ? "#2F80ED" : "#9A9A9A"}
+              />
+              <Text
+                className={`ml-1 font-jakarta-semibold text-[12px] ${
+                  item.isLastMessageRead ? "text-[#2F80ED]" : "text-[#9A9A9A]"
+                }`}
+              >
+                {item.isLastMessageRead ? "Read" : "Sent"}
+              </Text>
+            </View>
+          ) : null}
+          <Text
+            className="flex-1 font-jakarta text-[13px] text-[#8D8D8D]"
+            numberOfLines={1}
+          >
+            {item.preview || "No messages yet"}
+          </Text>
+        </View>
       </View>
 
       <Text className="ml-2 self-start pt-2 font-jakarta text-[12px] text-[#777873]">
@@ -156,82 +268,69 @@ function ChatRow({ item }: { item: ChatItem }) {
   );
 }
 
-function TabItem({
-  icon,
-  label,
-  active = false,
-  onPress,
-}: {
-  icon: "card" | "hand" | "chat" | "person";
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
-}) {
-  const color = active ? "#252D36" : "#777873";
-
-  return (
-    <Pressable
-      className="min-w-[58px] items-center"
-      accessibilityRole="button"
-      onPress={onPress}
-    >
-      <View className="h-8 items-center justify-center">
-        {icon === "card" && (
-          <CardIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
-        {icon === "hand" && (
-          <HandIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : undefined}
-            size={28}
-          />
-        )}
-        {icon === "chat" && (
-          <ChatIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
-        {icon === "person" && (
-          <PersonIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
-      </View>
-      <Text
-        className={`mt-1 text-[12px] ${
-          active
-            ? "font-jakarta-bold text-[#252D36]"
-            : "font-jakarta-semibold text-[#777873]"
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function toChatItem(
   conversation: ConversationDto,
   currentUserId: number | null,
-): ChatItem {
+  presenceByUserId: Record<number, boolean>,
+  matches: MatchDto[],
+): ChatItem | null {
   const participantIds = conversation.participantIds ?? conversation.participants;
-  const otherUserId = participantIds.find((id) => id !== currentUserId);
+  const otherUserId = participantIds.find((id) => id !== currentUserId) ?? null;
+  const match = matches.find(
+    (match) =>
+      match.conversationId === conversation.id ||
+      match.matchedUser.id === otherUserId,
+  );
+
+  if (!match) return null;
+
+  const matchedUser = match.matchedUser;
+  const name =
+    conversation.name?.trim() ||
+    matchedUser?.displayName?.trim() ||
+    "Conversation";
+  const photoUrl = normalizePhotoUri(
+    matchedUser?.profilePhotoUrl ||
+      matchedUser?.photos?.find((photo) => photo.isProfile)?.url ||
+      matchedUser?.photos?.[0]?.url ||
+      "",
+  );
 
   return {
     id: conversation.id,
-    name: conversation.name || (otherUserId ? `BeeFriend ${otherUserId}` : "BeeFriend"),
-    preview: conversation.lastMessagePreview || "Say hi and start a conversation.",
+    name,
+    preview:
+      conversation.lastMessagePreview ||
+      (conversation.lastMessage?.attachmentUrls?.length ? "Photo" : ""),
     time: formatChatTime(conversation.updatedAt),
-    photoUrl: "",
+    photoUrl,
+    otherUserId,
+    isOnline: otherUserId ? presenceByUserId[otherUserId] ?? null : null,
+    isLastMessageMine: conversation.lastMessageSenderId === currentUserId,
+    isLastMessageRead: Boolean(
+      otherUserId && conversation.lastMessage?.readBy?.includes(otherUserId),
+    ),
   };
+}
+
+function normalizePhotoUri(photoUri: string) {
+  if (!photoUri) return "";
+
+  if (
+    photoUri.startsWith("http://") ||
+    photoUri.startsWith("https://") ||
+    photoUri.startsWith("file://") ||
+    photoUri.startsWith("content://") ||
+    photoUri.startsWith("data:")
+  ) {
+    return photoUri;
+  }
+
+  if (photoUri.startsWith("/")) {
+    return `${API_BASE_URL}${photoUri}`;
+  }
+
+  return photoUri;
 }
 
 function formatChatTime(value: Date | string) {
