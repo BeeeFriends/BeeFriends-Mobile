@@ -10,14 +10,14 @@ import type {
 } from "@beefriends/shared-kernel/dto/chat";
 import type { AuthResponseDto } from "@beefriends/shared-kernel/types";
 import {
-  CardIcon,
-  ChatIcon,
   HandIcon,
   LocationCampusIcon,
   MajorIcon,
   PersonIcon,
   SettingIcon,
 } from "../components/icons";
+import { BottomNav } from "../components/BottomNav";
+import { SkeletonBlock } from "../components/SkeletonBlock";
 import { API_BASE_URL } from "../lib/api/client";
 import { getValidAuthSession } from "../lib/auth/session";
 import { discoverMatches, swipeUser } from "../lib/api/matches";
@@ -25,6 +25,7 @@ import { discoverMatches, swipeUser } from "../lib/api/matches";
 export default function HomeScreen() {
   const [session, setSession] = useState<AuthResponseDto | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isLoadingCandidates, setIsLoadingCandidates] = useState(true);
   const [candidates, setCandidates] = useState<MatchProfileDto[]>([]);
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
@@ -45,6 +46,7 @@ export default function HomeScreen() {
 
       setSession(savedSession);
       setIsCheckingSession(false);
+      registerPushToken(savedSession.user.id);
     }
 
     loadSession();
@@ -59,6 +61,8 @@ export default function HomeScreen() {
 
     async function loadCandidates() {
       if (!session?.user.id) return;
+
+      setIsLoadingCandidates(true);
 
       try {
         const nextCandidates = await discoverMatches({
@@ -76,6 +80,8 @@ export default function HomeScreen() {
 
         setCandidates([]);
         setCandidateIndex(0);
+      } finally {
+        if (isMounted) setIsLoadingCandidates(false);
       }
     }
 
@@ -109,7 +115,7 @@ export default function HomeScreen() {
   };
 
   if (isCheckingSession) {
-    return <SafeAreaView className="flex-1 bg-white" />;
+    return <ExploreSkeleton />;
   }
 
   const user = candidates[candidateIndex] ?? null;
@@ -132,13 +138,16 @@ export default function HomeScreen() {
             className="h-10 w-10 items-center justify-center"
             accessibilityRole="button"
             accessibilityLabel="Settings"
+            onPress={() => router.push("/settings" as never)}
           >
             <SettingIcon size={22} />
           </Pressable>
         </View>
 
         <View className="mt-2 flex-1 items-center">
-          {hasCandidate ? (
+          {isLoadingCandidates ? (
+            <ExploreCardSkeleton />
+          ) : hasCandidate ? (
           <View className="relative w-full overflow-hidden rounded-[18px] bg-[#211C1D]">
             <View className="aspect-[9/16] w-full">
               {profilePhotoUri && !imageFailed ? (
@@ -175,23 +184,19 @@ export default function HomeScreen() {
                   <InfoLine type="major" text={user?.major?.name} />
                 </View>
 
-                <Text className="mt-5 font-jakarta-semibold text-[14px] leading-5 text-white">
-                  {user?.description || "Looking for a gym buddy from CS!"}
-                </Text>
+                {user?.description ? (
+                  <Text className="mt-5 font-jakarta-semibold text-[14px] leading-5 text-white">
+                    {user.description}
+                  </Text>
+                ) : null}
 
-                <View className="mt-5 flex-row flex-wrap gap-2">
-                  {hobbies.length > 0 ? (
-                    hobbies.map((hobby) => (
+                {hobbies.length > 0 ? (
+                  <View className="mt-5 flex-row flex-wrap gap-2">
+                    {hobbies.map((hobby) => (
                       <InterestPill key={hobby.id} label={hobby.name} />
-                    ))
-                  ) : (
-                    <>
-                      <InterestPill label="Soccer" />
-                      <InterestPill label="Movies" />
-                      <InterestPill label="Gym" />
-                    </>
-                  )}
-                </View>
+                    ))}
+                  </View>
+                ) : null}
               </View>
             </View>
 
@@ -209,7 +214,10 @@ export default function HomeScreen() {
           </View>
           ) : (
             <View className="flex-1 items-center justify-center px-8">
-              <Text className="text-center font-jakarta-bold text-[22px] text-[#171819]">
+              <View className="h-16 w-16 items-center justify-center rounded-full bg-[#FFF7B8]">
+                <HandIcon color="#252D36" fillColor="#FFEA00" size={34} />
+              </View>
+              <Text className="mt-5 text-center font-jakarta-bold text-[22px] text-[#171819]">
                 No profiles found
               </Text>
               <Text className="mt-2 text-center font-jakarta text-[13px] leading-5 text-[#777873]">
@@ -219,26 +227,73 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <View className="h-[58px] flex-row items-center justify-around">
-          <TabItem icon="card" label="Explore" active />
-          <TabItem
-            icon="hand"
-            label="Matches"
-            onPress={() => router.push("/matches")}
-          />
-          <TabItem
-            icon="chat"
-            label="Chat"
-            onPress={() => router.push("/chat")}
-          />
-          <TabItem
-            icon="person"
-            label="Profile"
-            onPress={() => router.push("/profile")}
-          />
-        </View>
+        <BottomNav active="home" heightClassName="h-[58px]" />
       </View>
     </SafeAreaView>
+  );
+}
+
+function registerPushToken(userId: number) {
+  import("../lib/notifications/push")
+    .then(({ registerForPushNotifications }) =>
+      registerForPushNotifications(userId),
+    )
+    .catch(() => undefined);
+}
+
+function ExploreSkeleton() {
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <StatusBar style="dark" />
+      <View className="mx-auto w-full max-w-[430px] flex-1 px-3 pb-3 pt-4">
+        <View className="flex-row items-center justify-between px-1">
+          <Image
+            source={require("../assets/images/beefriends_title.png")}
+            className="h-[31px] w-[98px]"
+            resizeMode="contain"
+          />
+          <SkeletonBlock className="h-10 w-10 rounded-full" />
+        </View>
+
+        <View className="mt-2 flex-1 items-center">
+          <ExploreCardSkeleton />
+        </View>
+
+        <BottomNav active="home" heightClassName="h-[58px]" />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function ExploreCardSkeleton() {
+  return (
+    <View className="relative w-full overflow-hidden rounded-[18px] bg-[#211C1D]">
+      <View className="aspect-[9/16] w-full bg-[#E7E7E7]" />
+
+      <View className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-24">
+        <View className="absolute inset-0 bg-black/35" />
+
+        <View className="relative pr-16">
+          <SkeletonBlock className="mb-2 h-5 w-[142px] rounded-full bg-[#7AE4F0]/80" />
+          <SkeletonBlock className="h-8 w-[188px] rounded-lg bg-white/85" />
+          <SkeletonBlock className="mt-3 h-4 w-[198px] rounded-md bg-white/75" />
+          <SkeletonBlock className="mt-2 h-4 w-[162px] rounded-md bg-white/75" />
+          <SkeletonBlock className="mt-5 h-4 w-full rounded-md bg-white/75" />
+          <SkeletonBlock className="mt-2 h-4 w-[74%] rounded-md bg-white/75" />
+
+          <View className="mt-5 flex-row gap-2">
+            <SkeletonBlock className="h-7 w-[70px] rounded-full bg-white/75" />
+            <SkeletonBlock className="h-7 w-[82px] rounded-full bg-white/75" />
+            <SkeletonBlock className="h-7 w-[64px] rounded-full bg-white/75" />
+          </View>
+        </View>
+      </View>
+
+      <View className="absolute bottom-16 right-4 gap-3">
+        <View className="h-10 w-10 rounded-full border-2 border-white bg-white" />
+        <View className="h-10 w-10 rounded-full border-2 border-white bg-[#FFDD2D]" />
+      </View>
+    </View>
   );
 }
 
@@ -298,68 +353,6 @@ function ActionButton({
       ) : (
         <Ionicons name="close" size={28} color="#171819" />
       )}
-    </Pressable>
-  );
-}
-
-function TabItem({
-  icon,
-  label,
-  active = false,
-  onPress,
-}: {
-  icon: "card" | "hand" | "chat" | "person";
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
-}) {
-  const color = active ? "#252D36" : "#777873";
-
-  return (
-    <Pressable
-      className="min-w-[58px] items-center"
-      accessibilityRole="button"
-      onPress={onPress}
-    >
-      <View className="h-8 items-center justify-center">
-        {icon === "card" && (
-          <CardIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
-        {icon === "hand" && (
-          <HandIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : undefined}
-            size={28}
-          />
-        )}
-        {icon === "chat" && (
-          <ChatIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
-        {icon === "person" && (
-          <PersonIcon
-            color={color}
-            fillColor={active ? "#FFEA00" : "#FFFFFF"}
-            size={28}
-          />
-        )}
-      </View>
-      <Text
-        className={`mt-1 text-[12px] ${
-          active
-            ? "font-jakarta-bold text-[#252D36]"
-            : "font-jakarta-semibold text-[#777873]"
-        }`}
-      >
-        {label}
-      </Text>
     </Pressable>
   );
 }
