@@ -62,3 +62,16 @@ export function swipeUser({
 export function getUserMatches(userId: number) {
   return requestJson<MatchDto[]>(MATCH_ENDPOINTS.BY_USER(userId));
 }
+
+export function unmatchUser(matchId: string, userId: number) {
+  const query = new URLSearchParams({
+    userId: String(userId),
+  });
+
+  return requestJson<MatchDto>(
+    `${MATCH_ENDPOINTS.UNMATCH(matchId)}?${query.toString()}`,
+    {
+    method: "DELETE",
+    },
+  );
+}
