@@ -7,7 +7,7 @@ import {
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "react-native-reanimated";
 import "../global.css";
 
@@ -17,9 +17,10 @@ export const unstable_settings = {
   initialRouteName: "index",
 };
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
+  const [didTimeout, setDidTimeout] = useState(false);
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     "Jakarta-Regular": PlusJakartaSans_400Regular,
@@ -28,16 +29,20 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
+    const timeout = setTimeout(() => {
+      setDidTimeout(true);
+      SplashScreen.hideAsync().catch(() => undefined);
+    }, 2500);
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    if (loaded || error) {
+      clearTimeout(timeout);
+      SplashScreen.hideAsync().catch(() => undefined);
     }
-  }, [loaded]);
 
-  if (!loaded) {
+    return () => clearTimeout(timeout);
+  }, [error, loaded]);
+
+  if (!loaded && !error && !didTimeout) {
     return null;
   }
 
@@ -51,10 +56,30 @@ function RootLayoutNav() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="home" options={{ headerShown: false }} />
-        <Stack.Screen name="matches" options={{ headerShown: false }} />
-        <Stack.Screen name="chat" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="home"
+          options={{ headerShown: false, animation: "fade" }}
+        />
+        <Stack.Screen
+          name="matches"
+          options={{ headerShown: false, animation: "fade" }}
+        />
+        <Stack.Screen
+          name="chat"
+          options={{ headerShown: false, animation: "fade" }}
+        />
+        <Stack.Screen name="chat-room" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="notification-settings"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="profile"
+          options={{ headerShown: false, animation: "fade" }}
+        />
+        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );
