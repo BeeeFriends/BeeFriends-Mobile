@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -43,6 +43,7 @@ type EditProfileDraft = {
 };
 
 export default function EditProfileScreen() {
+  const scrollViewRef = useRef<ScrollView>(null);
   const [profile, setProfile] = useState<UserProfileDto | null>(null);
   const [accessToken, setAccessToken] = useState("");
   const [draft, setDraft] = useState<EditProfileDraft | null>(null);
@@ -52,6 +53,7 @@ export default function EditProfileScreen() {
   const [isMasterDataLoading, setIsMasterDataLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -114,10 +116,37 @@ export default function EditProfileScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
+      Keyboard.scheduleLayoutAnimation?.(event);
+      setIsKeyboardOpen(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
+      Keyboard.scheduleLayoutAnimation?.(event);
+      setIsKeyboardOpen(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   const updateDraft = (nextDraft: Partial<EditProfileDraft>) => {
     setDraft((currentDraft) =>
       currentDraft ? { ...currentDraft, ...nextDraft } : currentDraft,
     );
+  };
+
+  const scrollFocusedInputIntoView = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 120);
   };
 
   const pickProfilePhoto = async () => {
@@ -224,7 +253,7 @@ export default function EditProfileScreen() {
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -262,10 +291,12 @@ export default function EditProfileScreen() {
             </View>
 
             <ScrollView
+              ref={scrollViewRef}
               className="flex-1 px-5"
-              contentContainerClassName="pb-8"
+              contentContainerClassName={isKeyboardOpen ? "pb-80" : "pb-8"}
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets
               showsVerticalScrollIndicator={false}
             >
               <View className="rounded-[22px] bg-[#F7F7F7] p-4">
@@ -392,24 +423,28 @@ export default function EditProfileScreen() {
                 <EditField
                   label="Display name"
                   value={draft.displayName}
+                  onFocus={scrollFocusedInputIntoView}
                   onChangeText={(displayName) => updateDraft({ displayName })}
                 />
                 <EditField
                   label="Phone number"
                   value={draft.phoneNumber}
                   keyboardType="phone-pad"
+                  onFocus={scrollFocusedInputIntoView}
                   onChangeText={(phoneNumber) => updateDraft({ phoneNumber })}
                 />
                 <EditField
                   label="Age"
                   value={draft.age}
                   keyboardType="number-pad"
+                  onFocus={scrollFocusedInputIntoView}
                   onChangeText={(age) => updateDraft({ age })}
                 />
                 <EditField
                   label="Bio"
                   value={draft.description}
                   multiline
+                  onFocus={scrollFocusedInputIntoView}
                   onChangeText={(description) => updateDraft({ description })}
                 />
               </View>
@@ -611,12 +646,14 @@ function EditField({
   label,
   value,
   onChangeText,
+  onFocus,
   keyboardType,
   multiline = false,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
+  onFocus?: () => void;
   keyboardType?: "default" | "number-pad" | "phone-pad";
   multiline?: boolean;
 }) {
@@ -634,6 +671,7 @@ function EditField({
           multiline ? "min-h-[112px] py-3 leading-5" : "h-12"
         }`}
         placeholderTextColor="#8D8D8D"
+        onFocus={onFocus}
         onChangeText={onChangeText}
       />
     </View>

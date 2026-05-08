@@ -7,7 +7,8 @@ import {
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { View } from "react-native";
 import "react-native-reanimated";
 import "../global.css";
 
@@ -20,7 +21,6 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
-  const [didTimeout, setDidTimeout] = useState(false);
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     "Jakarta-Regular": PlusJakartaSans_400Regular,
@@ -29,22 +29,16 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDidTimeout(true);
-      SplashScreen.hideAsync().catch(() => undefined);
-    }, 2500);
-
     if (loaded || error) {
-      clearTimeout(timeout);
       SplashScreen.hideAsync().catch(() => undefined);
     }
+  }, [loaded, error]);
 
-    return () => clearTimeout(timeout);
-  }, [error, loaded]);
-
-  if (!loaded && !error && !didTimeout) {
-    return null;
+  if (!loaded && !error) {
+    return <View style={{ flex: 1, backgroundColor: "#ffffff" }} />;
   }
+
+  if (error) throw error;
 
   return <RootLayoutNav />;
 }

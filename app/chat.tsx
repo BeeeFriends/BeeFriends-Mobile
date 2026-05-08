@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type {
   ConversationDto,
   MatchDto,
+  MessageDto,
 } from "@beefriends/shared-kernel/dto/chat";
 import {
   ChatIcon,
@@ -21,6 +22,7 @@ import { getUserConversations } from "../lib/api/conversations";
 import { getUserMatches } from "../lib/api/matches";
 import { getBatchPresence } from "../lib/api/presence";
 import { getValidAuthSession } from "../lib/auth/session";
+import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
 
 type ChatItem = {
   id: string;
@@ -94,6 +96,63 @@ export default function ChatScreen() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const socket = getChatSocket(currentUserId);
+    const handleMessageReceived = (message: MessageDto) => {
+      setConversations((currentConversations) =>
+        sortConversations(
+          currentConversations.map((conversation) =>
+            conversation.id === message.conversationId
+              ? updateConversationWithMessage(conversation, message)
+              : conversation,
+          ),
+        ),
+      );
+    };
+    const handlePresenceChanged = (presence: {
+      userId: number;
+      isOnline: boolean;
+    }) => {
+      setPresenceByUserId((currentPresence) =>
+        currentPresence[presence.userId] === presence.isOnline
+          ? currentPresence
+          : {
+              ...currentPresence,
+              [presence.userId]: presence.isOnline,
+            },
+      );
+    };
+    const handleMessageRead = (event: {
+      conversationId: string;
+      messageId: string;
+      userId: number;
+    }) => {
+      setConversations((currentConversations) =>
+        currentConversations.map((conversation) =>
+          conversation.id === event.conversationId
+            ? applyConversationReadReceipt(
+                conversation,
+                event.messageId,
+                event.userId,
+              )
+            : conversation,
+        ),
+      );
+    };
+
+    socket.on(CHAT_EVENTS.MESSAGE_RECEIVED, handleMessageReceived);
+    socket.on(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
+    socket.on(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
+
+    return () => {
+      socket.off(CHAT_EVENTS.MESSAGE_RECEIVED, handleMessageReceived);
+      socket.off(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
+      socket.off(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
+    };
+  }, [currentUserId]);
 
   const chatItems = useMemo(
     () =>
@@ -188,6 +247,79 @@ function ChatListSkeleton() {
       ))}
     </View>
   );
+}
+
+function updateConversationWithMessage(
+  conversation: ConversationDto,
+  message: MessageDto,
+): ConversationDto {
+  return {
+    ...conversation,
+    lastMessageId: message.id,
+    lastMessagePreview: getMessagePreview(message),
+    lastMessageSenderId: message.senderId,
+    lastMessage: mergeMessageReadBy(conversation.lastMessage, message),
+    updatedAt: message.updatedAt,
+  };
+}
+
+function applyConversationReadReceipt(
+  conversation: ConversationDto,
+  messageId: string,
+  userId: number,
+): ConversationDto {
+  if (conversation.lastMessage?.id !== messageId) return conversation;
+
+  return {
+    ...conversation,
+    lastMessage: {
+      ...conversation.lastMessage,
+      readBy: Array.from(
+        new Set([...(conversation.lastMessage.readBy ?? []), userId]),
+      ),
+    },
+  };
+}
+
+function mergeMessageReadBy(
+  currentMessage: MessageDto | null,
+  nextMessage: MessageDto,
+) {
+  if (!currentMessage || currentMessage.id !== nextMessage.id) {
+    return nextMessage;
+  }
+
+  return {
+    ...currentMessage,
+    ...nextMessage,
+    readBy: Array.from(
+      new Set([...(currentMessage.readBy ?? []), ...(nextMessage.readBy ?? [])]),
+    ),
+  };
+}
+
+function sortConversations(conversations: ConversationDto[]) {
+  return [...conversations].sort(
+    (firstConversation, secondConversation) =>
+      getConversationTime(secondConversation) -
+      getConversationTime(firstConversation),
+  );
+}
+
+function getConversationTime(conversation: ConversationDto) {
+  const date = new Date(conversation.updatedAt);
+
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function getMessagePreview(message: MessageDto) {
+  if (message.attachmentUrls?.length && message.content === "Photo") {
+    return "Photo";
+  }
+
+  return message.content.length > 120
+    ? `${message.content.slice(0, 117)}...`
+    : message.content;
 }
 
 function ChatRow({ item }: { item: ChatItem }) {

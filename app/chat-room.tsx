@@ -30,6 +30,7 @@ import {
 } from "../lib/api/conversations";
 import { getUserPresence } from "../lib/api/presence";
 import { getValidAuthSession } from "../lib/auth/session";
+import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
 
 const emojiCategories = [
   {
@@ -174,6 +175,7 @@ export default function ChatRoomScreen() {
     photoUrl?: string;
   }>();
   const scrollViewRef = useRef<ScrollView>(null);
+  const readReceiptsSentRef = useRef<Set<string>>(new Set());
   const conversationId = Array.isArray(params.conversationId)
     ? params.conversationId[0]
     : params.conversationId;
@@ -248,6 +250,73 @@ export default function ChatRoomScreen() {
   }, [conversationId]);
 
   useEffect(() => {
+    if (!conversationId || !currentUserId) return;
+
+    const socket = getChatSocket(currentUserId);
+    const joinConversation = () => {
+      socket.emit(CHAT_EVENTS.JOIN_CONVERSATION, {
+        conversationId,
+        userId: currentUserId,
+      });
+    };
+    const handleMessageReceived = (message: MessageDto) => {
+      if (message.conversationId !== conversationId) return;
+
+      setMessages((currentMessages) =>
+        mergeMessageList(currentMessages, message),
+      );
+      setConversation((currentConversation) =>
+        currentConversation
+          ? {
+              ...currentConversation,
+              lastMessageId: message.id,
+              lastMessagePreview: getMessagePreview(message),
+              lastMessageSenderId: message.senderId,
+              lastMessage: message,
+              updatedAt: message.updatedAt,
+            }
+          : currentConversation,
+      );
+    };
+    const handlePresenceChanged = (presence: {
+      userId: number;
+      isOnline: boolean;
+    }) => {
+      if (participantId && presence.userId === participantId) {
+        setIsParticipantOnline(presence.isOnline);
+      }
+    };
+    const handleMessageRead = (event: {
+      conversationId: string;
+      messageId: string;
+      userId: number;
+    }) => {
+      if (event.conversationId !== conversationId) return;
+
+      setMessages((currentMessages) =>
+        applyReadReceipt(currentMessages, event.messageId, event.userId),
+      );
+    };
+
+    if (socket.connected) joinConversation();
+    socket.on("connect", joinConversation);
+    socket.on(CHAT_EVENTS.MESSAGE_RECEIVED, handleMessageReceived);
+    socket.on(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
+    socket.on(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
+
+    return () => {
+      socket.emit(CHAT_EVENTS.LEAVE_CONVERSATION, {
+        conversationId,
+        userId: currentUserId,
+      });
+      socket.off("connect", joinConversation);
+      socket.off(CHAT_EVENTS.MESSAGE_RECEIVED, handleMessageReceived);
+      socket.off(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
+      socket.off(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
+    };
+  }, [conversationId, currentUserId, participantId]);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function loadPresence() {
@@ -282,19 +351,60 @@ export default function ChatRoomScreen() {
   }, [messages.length]);
 
   useEffect(() => {
+    if (!conversationId || !currentUserId || messages.length === 0) return;
+
+    const unreadMessageIds = messages
+      .filter(
+        (message) =>
+          message.senderId !== currentUserId &&
+          !message.readBy?.includes(currentUserId) &&
+          !readReceiptsSentRef.current.has(message.id),
+      )
+      .map((message) => message.id);
+
+    if (unreadMessageIds.length === 0) return;
+
+    const socket = getChatSocket(currentUserId);
+
+    unreadMessageIds.forEach((messageId) => {
+      readReceiptsSentRef.current.add(messageId);
+      socket.emit(CHAT_EVENTS.MESSAGE_READ, {
+        conversationId,
+        messageId,
+        userId: currentUserId,
+      });
+    });
+
+    setMessages((currentMessages) =>
+      currentMessages.map((message) =>
+        unreadMessageIds.includes(message.id)
+          ? {
+              ...message,
+              readBy: Array.from(
+                new Set([...(message.readBy ?? []), currentUserId]),
+              ),
+            }
+          : message,
+      ),
+    );
+  }, [conversationId, currentUserId, messages]);
+
+  useEffect(() => {
     const showEvent =
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
-    const showSubscription = Keyboard.addListener(showEvent, () => {
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
+      Keyboard.scheduleLayoutAnimation?.(event);
       setIsKeyboardOpen(true);
       setIsEmojiTrayOpen(false);
       requestAnimationFrame(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       });
     });
-    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+    const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
+      Keyboard.scheduleLayoutAnimation?.(event);
       setIsKeyboardOpen(false);
     });
 
@@ -334,7 +444,9 @@ export default function ChatRoomScreen() {
         attachmentUrls: selectedImageUri ? [selectedImageUri] : undefined,
       }, currentUserId);
 
-      setMessages((currentMessages) => [...currentMessages, nextMessage]);
+      setMessages((currentMessages) =>
+        mergeMessageList(currentMessages, nextMessage),
+      );
       setMessageText("");
       setSelectedImageUri("");
       setIsEmojiTrayOpen(false);
@@ -386,7 +498,7 @@ export default function ChatRoomScreen() {
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
@@ -451,6 +563,7 @@ export default function ChatRoomScreen() {
             contentContainerClassName={`pt-5 ${isKeyboardOpen ? "pb-3" : "pb-5"}`}
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() =>
               scrollViewRef.current?.scrollToEnd({ animated: true })
@@ -747,6 +860,68 @@ function normalizeAttachmentUri(uri: string) {
   }
 
   return uri;
+}
+
+function mergeMessageList(
+  currentMessages: MessageDto[],
+  nextMessage: MessageDto,
+) {
+  const existingMessage = currentMessages.find(
+    (message) => message.id === nextMessage.id,
+  );
+
+  const mergedMessages = existingMessage
+    ? currentMessages.map((message) =>
+        message.id === nextMessage.id
+          ? {
+              ...message,
+              ...nextMessage,
+              readBy: Array.from(
+                new Set([...(message.readBy ?? []), ...(nextMessage.readBy ?? [])]),
+              ),
+            }
+          : message,
+      )
+    : [...currentMessages, nextMessage];
+
+  return mergedMessages.sort(
+    (firstMessage, secondMessage) =>
+      getMessageTime(firstMessage) - getMessageTime(secondMessage),
+  );
+}
+
+function applyReadReceipt(
+  currentMessages: MessageDto[],
+  messageId: string,
+  userId: number,
+) {
+  return currentMessages.map((message) => {
+    if (message.id !== messageId || message.readBy?.includes(userId)) {
+      return message;
+    }
+
+    return {
+      ...message,
+      readBy: [...(message.readBy ?? []), userId],
+    };
+  });
+}
+
+function getMessagePreview(message: MessageDto) {
+  if (message.attachmentUrls?.length && message.content === "Photo") {
+    return "Photo";
+  }
+
+  return message.content.length > 120
+    ? `${message.content.slice(0, 117)}...`
+    : message.content;
+}
+
+function getMessageTime(message: MessageDto) {
+  const value = message.timestamp || message.createdAt;
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }
 
 function getErrorMessage(error: unknown) {
