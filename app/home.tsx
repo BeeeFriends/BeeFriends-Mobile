@@ -149,7 +149,11 @@ export default function HomeScreen() {
             <ExploreCardSkeleton />
           ) : hasCandidate ? (
           <View className="relative w-full overflow-hidden rounded-[18px] bg-[#211C1D]">
-            <View className="aspect-[9/16] w-full">
+            <Pressable
+              className="aspect-[9/16] w-full"
+              accessibilityRole="button"
+              onPress={() => openProfileDetail(user)}
+            >
               {profilePhotoUri && !imageFailed ? (
                 <Image
                   source={{ uri: profilePhotoUri }}
@@ -162,7 +166,7 @@ export default function HomeScreen() {
                   <PersonIcon color="#777873" size={54} />
                 </View>
               )}
-            </View>
+            </Pressable>
 
             <View className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-24">
               <View className="absolute inset-0 bg-black/35" />
@@ -174,7 +178,10 @@ export default function HomeScreen() {
                   </Text>
                 </View>
 
-                <Text className="font-jakarta-bold text-[24px] leading-8 text-white">
+                <Text
+                  className="font-jakarta-bold text-[24px] leading-8 text-white"
+                  onPress={() => openProfileDetail(user)}
+                >
                   {user?.displayName || "BeeFriend"}, B
                   {user?.binusianYear ? String(user.binusianYear).slice(-2) : "--"}
                 </Text>
@@ -381,4 +388,13 @@ function getProfilePhotoUri(user: MatchProfileDto | null) {
   }
 
   return profilePhoto;
+}
+
+function openProfileDetail(user: MatchProfileDto | null) {
+  if (!user) return;
+
+  router.push({
+    pathname: "/profile-detail" as never,
+    params: { profile: JSON.stringify(user) },
+  });
 }

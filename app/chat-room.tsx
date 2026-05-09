@@ -31,6 +31,7 @@ import {
 import { getUserPresence } from "../lib/api/presence";
 import { uploadChatAttachment } from "../lib/api/users";
 import { getValidAuthSession } from "../lib/auth/session";
+import { goBackOrReplace } from "../lib/navigation/back";
 import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
 
 const emojiCategories = [
@@ -174,6 +175,7 @@ export default function ChatRoomScreen() {
     name?: string;
     participantId?: string;
     photoUrl?: string;
+    profile?: string;
   }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const readReceiptsSentRef = useRef<Set<string>>(new Set());
@@ -188,6 +190,9 @@ export default function ChatRoomScreen() {
     ? params.participantId[0]
     : params.participantId;
   const participantId = participantIdParam ? Number(participantIdParam) : null;
+  const routeProfile = Array.isArray(params.profile)
+    ? params.profile[0]
+    : params.profile;
 
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [accessToken, setAccessToken] = useState("");
@@ -219,7 +224,7 @@ export default function ChatRoomScreen() {
       }
 
       if (!conversationId) {
-        router.back();
+        goBackOrReplace("/chat");
         return;
       }
 
@@ -239,7 +244,7 @@ export default function ChatRoomScreen() {
           title: "Failed to open chat",
           message: getErrorMessage(error),
         });
-        router.back();
+        goBackOrReplace("/chat");
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -498,25 +503,39 @@ export default function ChatRoomScreen() {
     setIsEmojiTrayOpen((isOpen) => !isOpen);
   };
 
+  const openProfileDetail = (profilePayload?: string) => {
+    if (!profilePayload) return;
+
+    router.push({
+      pathname: "/profile-detail" as never,
+      params: { profile: profilePayload },
+    });
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={0}
       >
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
           <Pressable
             className="h-10 w-10 items-center justify-center rounded-full bg-[#F5F5F5]"
             accessibilityRole="button"
-            onPress={() => router.back()}
+            onPress={() => goBackOrReplace("/chat")}
           >
             <Ionicons name="chevron-back" size={22} color="#171819" />
           </Pressable>
 
-          <View className="ml-3 h-11 w-11">
+          <Pressable
+            className="ml-3 h-11 w-11"
+            accessibilityRole="button"
+            disabled={!routeProfile}
+            onPress={() => openProfileDetail(routeProfile)}
+          >
             <View className="h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#FFF7B8]">
               {headerPhotoUrl ? (
                 <Image
@@ -535,9 +554,14 @@ export default function ChatRoomScreen() {
                 isParticipantOnline ? "bg-[#21C45D]" : "bg-[#C9C9C9]"
               }`}
             />
-          </View>
+          </Pressable>
 
-          <View className="ml-3 flex-1 justify-center">
+          <Pressable
+            className="ml-3 flex-1 justify-center"
+            accessibilityRole="button"
+            disabled={!routeProfile}
+            onPress={() => openProfileDetail(routeProfile)}
+          >
             <View className="flex-row items-center">
               <Text
                 className="max-w-[210px] font-jakarta-bold text-[17px] text-[#171819]"
@@ -555,7 +579,7 @@ export default function ChatRoomScreen() {
                     : "Offline"}
               </Text>
             </View>
-          </View>
+          </Pressable>
         </View>
 
         {isLoading ? (
@@ -636,28 +660,32 @@ export default function ChatRoomScreen() {
             <Pressable
               className="mr-2 h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F5]"
               accessibilityRole="button"
+              accessibilityLabel="Add image"
               onPress={pickImage}
             >
               <Ionicons name="image-outline" size={21} color="#171819" />
             </Pressable>
 
-            <View className="min-h-11 flex-1 flex-row items-end rounded-[22px] bg-[#F5F5F5] px-2 py-1">
-              <Pressable
-                className={`h-9 w-9 items-center justify-center rounded-full ${
-                  isEmojiTrayOpen ? "bg-[#FFE036]" : "bg-white"
-                }`}
-                accessibilityRole="button"
-                onPress={toggleEmojiTray}
-              >
-                <Ionicons name="happy-outline" size={20} color="#171819" />
-              </Pressable>
+            <Pressable
+              className={`mr-2 h-11 w-11 items-center justify-center rounded-full ${
+                isEmojiTrayOpen ? "bg-[#FFE036]" : "bg-[#F5F5F5]"
+              }`}
+              accessibilityRole="button"
+              accessibilityLabel="Open emoji picker"
+              onPress={toggleEmojiTray}
+            >
+              <Ionicons name="happy-outline" size={20} color="#171819" />
+            </Pressable>
+
+            <View className="min-h-11 flex-1 flex-row items-end rounded-[22px] bg-[#F5F5F5] px-3 py-1">
               <TextInput
                 value={messageText}
                 multiline
+                scrollEnabled
                 placeholder="Message"
                 placeholderTextColor="#8D8D8D"
-                className="max-h-28 flex-1 px-3 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
-                textAlignVertical="center"
+                className="max-h-28 flex-1 px-1 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
+                textAlignVertical={messageText.includes("\n") ? "top" : "center"}
                 onFocus={() => {
                   setIsEmojiTrayOpen(false);
                   requestAnimationFrame(() => {

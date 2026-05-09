@@ -75,6 +75,7 @@ function RootLayoutNav() {
           name="profile"
           options={{ headerShown: false, animation: "fade" }}
         />
+        <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>

@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
 import { CardIcon, ChatIcon, HandIcon, PersonIcon } from "./icons";
+import { useMainTabBackBehavior } from "../lib/navigation/back";
 
 type BottomNavRoute = "home" | "matches" | "chat" | "profile";
 
@@ -28,6 +29,8 @@ export function BottomNav({
   bordered = false,
   heightClassName = "h-[62px]",
 }: BottomNavProps) {
+  useMainTabBackBehavior(active);
+
   return (
     <View
       className={`${heightClassName} w-full flex-row items-center bg-white px-4 ${

@@ -71,6 +71,7 @@ export default function MatchesScreen() {
 
     const conversationName = match.matchedUser.displayName?.trim() || "Chat";
     const photoUrl = getProfilePhotoUri(match.matchedUser);
+    const profilePayload = JSON.stringify(match.matchedUser);
 
     if (match.conversationId) {
       router.push({
@@ -80,6 +81,7 @@ export default function MatchesScreen() {
           name: conversationName,
           participantId: String(match.matchedUser.id),
           photoUrl,
+          profile: profilePayload,
         },
       });
       return;
@@ -109,6 +111,7 @@ export default function MatchesScreen() {
           name: conversation.name || conversationName,
           participantId: String(match.matchedUser.id),
           photoUrl,
+          profile: profilePayload,
         },
       });
     } catch (error) {
@@ -195,6 +198,7 @@ export default function MatchesScreen() {
                 showNewBadge={index === 0}
                 isBusy={activeActionId === match.id}
                 onChat={() => openMatchChat(match)}
+                onOpenProfile={() => openProfileDetail(match.matchedUser)}
                 onUnmatch={() => confirmUnmatch(match)}
               />
             ))
@@ -337,12 +341,14 @@ function MatchRow({
   showNewBadge,
   isBusy,
   onChat,
+  onOpenProfile,
   onUnmatch,
 }: {
   match: MatchDto;
   showNewBadge: boolean;
   isBusy: boolean;
   onChat: () => void;
+  onOpenProfile: () => void;
   onUnmatch: () => void;
 }) {
   const user = match.matchedUser;
@@ -350,7 +356,11 @@ function MatchRow({
 
   return (
     <View className="mb-3 h-[47px] flex-row items-center">
-      <View className="h-[42px] w-[42px] overflow-hidden rounded-full bg-[#F1F1F1]">
+      <Pressable
+        className="h-[42px] w-[42px] overflow-hidden rounded-full bg-[#F1F1F1]"
+        accessibilityRole="button"
+        onPress={onOpenProfile}
+      >
         {photoUri ? (
           <Image source={{ uri: photoUri }} className="h-full w-full" resizeMode="cover" />
         ) : (
@@ -358,9 +368,13 @@ function MatchRow({
             <PersonIcon color="#777873" size={25} />
           </View>
         )}
-      </View>
+      </Pressable>
 
-      <View className="ml-4 flex-1">
+      <Pressable
+        className="ml-4 flex-1"
+        accessibilityRole="button"
+        onPress={onOpenProfile}
+      >
         <View className="flex-row items-center">
           <Text
             className="max-w-[154px] font-jakarta-bold text-[15px] leading-5 text-[#171819]"
@@ -383,7 +397,7 @@ function MatchRow({
           B{user.binusianYear ? String(user.binusianYear).slice(-2) : "--"},{" "}
           {user.major?.name || "Major"}
         </Text>
-      </View>
+      </Pressable>
 
       <Pressable
         className="h-8 w-8 items-center justify-center"
@@ -416,6 +430,13 @@ function getProfilePhotoUri(user: MatchProfileDto) {
       user.photos?.[0]?.url ||
       "",
   );
+}
+
+function openProfileDetail(user: MatchProfileDto) {
+  router.push({
+    pathname: "/profile-detail" as never,
+    params: { profile: JSON.stringify(user) },
+  });
 }
 
 function normalizePhotoUri(photoUri: string) {

@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { loginAccount } from "../lib/api/auth";
 import { saveAuthSession } from "../lib/auth/session";
+import { goBackOrReplace } from "../lib/navigation/back";
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error && error.message) {
@@ -80,7 +81,7 @@ export default function LoginScreen() {
             className="h-10 w-10 items-center justify-center"
             accessibilityRole="button"
             accessibilityLabel="Back"
-            onPress={() => router.back()}
+            onPress={() => goBackOrReplace("/")}
           >
             <Ionicons name="arrow-back" size={24} color="#171819" />
           </Pressable>

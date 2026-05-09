@@ -12,6 +12,7 @@ import {
   markNotificationRead,
 } from "../lib/api/notifications";
 import { getValidAuthSession } from "../lib/auth/session";
+import { goBackOrReplace } from "../lib/navigation/back";
 
 export default function NotificationsScreen() {
   const [userId, setUserId] = useState<number | null>(null);
@@ -87,7 +88,7 @@ export default function NotificationsScreen() {
             className="h-10 w-10 items-center justify-center rounded-full bg-[#F6F6F6]"
             accessibilityRole="button"
             accessibilityLabel="Back"
-            onPress={() => router.back()}
+            onPress={() => goBackOrReplace("/home")}
           >
             <Ionicons name="chevron-back" size={22} color="#171819" />
           </Pressable>

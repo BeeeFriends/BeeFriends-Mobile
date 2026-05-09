@@ -29,6 +29,7 @@ import { getMajorOptions } from "../lib/api/majors";
 import type { SelectOption } from "../lib/api/types";
 import { getValidAuthSession, saveAuthSession } from "../lib/auth/session";
 import { updateCurrentUserProfile } from "../lib/api/users";
+import { goBackOrReplace } from "../lib/navigation/back";
 
 type EditProfileDraft = {
   displayName: string;
@@ -263,7 +264,7 @@ export default function EditProfileScreen() {
                 className="h-10 w-10 items-center justify-center rounded-full bg-[#F5F5F5]"
                 accessibilityRole="button"
                 disabled={isSaving}
-                onPress={() => router.back()}
+                onPress={() => goBackOrReplace("/profile")}
               >
                 <Ionicons name="chevron-back" size={22} color="#171819" />
               </Pressable>

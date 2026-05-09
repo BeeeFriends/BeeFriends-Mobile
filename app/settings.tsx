@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { clearAuthSession, getValidAuthSession } from "../lib/auth/session";
+import { goBackOrReplace } from "../lib/navigation/back";
 
 const TEXT_COLOR = "#171819";
 export default function SettingsScreen() {
@@ -44,7 +45,7 @@ export default function SettingsScreen() {
             className="mr-4 h-10 w-10 items-center justify-center"
             accessibilityRole="button"
             accessibilityLabel="Close settings"
-            onPress={() => router.back()}
+            onPress={() => goBackOrReplace("/home")}
           >
             <Ionicons name="close" size={28} color={TEXT_COLOR} />
           </Pressable>

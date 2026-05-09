@@ -35,6 +35,7 @@ type ChatItem = {
   isLastMessageMine: boolean;
   isLastMessageRead: boolean;
   unreadCount: number;
+  profilePayload: string;
 };
 
 export default function ChatScreen() {
@@ -351,6 +352,7 @@ function ChatRow({ item }: { item: ChatItem }) {
             name: item.name,
             participantId: item.otherUserId ? String(item.otherUserId) : "",
             photoUrl: item.photoUrl,
+            profile: item.profilePayload,
           },
         })
       }
@@ -468,6 +470,7 @@ function toChatItem(
       otherUserId && conversation.lastMessage?.readBy?.includes(otherUserId),
     ),
     unreadCount: getUnreadCount(conversation),
+    profilePayload: matchedUser ? JSON.stringify(matchedUser) : "",
   };
 }
 
