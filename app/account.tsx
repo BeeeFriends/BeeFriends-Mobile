@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
+import { SkeletonBlock } from "../components/SkeletonBlock";
 import { API_BASE_URL } from "../lib/api/client";
 import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
@@ -44,6 +45,10 @@ export default function AccountScreen() {
 
   const displayName = profile?.displayName?.trim() || "BeeFriend";
   const photoUri = getProfilePhotoUri(profile);
+
+  if (isLoading) {
+    return <AccountSkeletonScreen />;
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#F6F6F6]">
@@ -91,7 +96,7 @@ export default function AccountScreen() {
                 className="font-jakarta-bold text-[18px] leading-6 text-[#171819]"
                 numberOfLines={2}
               >
-                {isLoading ? "Loading..." : displayName}
+                {displayName}
               </Text>
               <Text className="mt-1 font-jakarta-semibold text-[13px] leading-5 text-[#777873]">
                 B
@@ -128,6 +133,63 @@ export default function AccountScreen() {
         </ScrollView>
       </View>
     </SafeAreaView>
+  );
+}
+
+function AccountSkeletonScreen() {
+  return (
+    <SafeAreaView className="flex-1 bg-[#F6F6F6]">
+      <StatusBar style="dark" />
+      <View className="mx-auto w-full max-w-[430px] flex-1 bg-[#F6F6F6]">
+        <View className="h-[88px] flex-row items-center border-b border-[#EFEFEF] bg-white px-6 pt-8">
+          <Pressable
+            className="mr-4 h-10 w-10 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel="Back to settings"
+            onPress={() => goBackOrReplace("/settings")}
+          >
+            <Ionicons name="arrow-back" size={26} color={TEXT_COLOR} />
+          </Pressable>
+          <Text className="font-jakarta-bold text-[20px] leading-7 text-[#171819]">
+            Account
+          </Text>
+        </View>
+
+        <ScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <SectionHeader title="Profile" />
+          <View className="min-h-[104px] flex-row items-center border-b border-[#EFEFEF] bg-white px-6">
+            <SkeletonBlock className="mr-4 h-16 w-16 rounded-full" />
+            <View className="flex-1">
+              <SkeletonBlock className="h-6 w-[58%] rounded-lg" />
+              <SkeletonBlock className="mt-2 h-4 w-[88px] rounded-md" />
+            </View>
+          </View>
+
+          <SectionHeader title="Account details" />
+          {Array.from({ length: 4 }).map((_, index) => (
+            <AccountDetailSkeletonRow key={index} />
+          ))}
+
+          <View className="min-h-12 flex-1 bg-[#F6F6F6]" />
+        </ScrollView>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function AccountDetailSkeletonRow() {
+  return (
+    <View className="min-h-[74px] flex-row items-center border-b border-[#EFEFEF] bg-white px-6">
+      <SkeletonBlock className="mr-4 h-8 w-8 rounded-full" />
+      <View className="flex-1">
+        <SkeletonBlock className="h-4 w-[112px] rounded-md" />
+        <SkeletonBlock className="mt-2 h-5 w-[68%] rounded-md" />
+      </View>
+    </View>
   );
 }
 

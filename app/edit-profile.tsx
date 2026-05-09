@@ -18,7 +18,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { UserProfileDto } from "@beefriends/shared-kernel/types";
+import type {
+  UpdateUserDto,
+  UserProfileDto,
+} from "@beefriends/shared-kernel/types";
 import { PersonIcon } from "../components/icons";
 import { SkeletonBlock } from "../components/SkeletonBlock";
 import { ToastBanner, useToast } from "../components/ToastBanner";
@@ -207,10 +210,10 @@ export default function EditProfileScreen() {
       return;
     }
 
-    if (!Number.isFinite(age) || age < 16 || age > 99) {
+    if (!Number.isFinite(age) || age < 17 || age > 60) {
       showToast({
         title: "Profile incomplete",
-        message: "Age must be between 16 and 99.",
+        message: "Age must be between 17 and 60.",
       });
       return;
     }
@@ -248,9 +251,8 @@ export default function EditProfileScreen() {
           ),
       );
 
-      const updatedProfile = await updateCurrentUserProfile(accessToken, {
+      const updatePayload: UpdateUserDto = {
         displayName,
-        phoneNumber: draft.phoneNumber.trim(),
         description: draft.description.trim(),
         age,
         campusId: Number(draft.campusId),
@@ -258,15 +260,17 @@ export default function EditProfileScreen() {
         hobbyIds: draft.hobbyIds.map(Number),
         profilePhotoUrl: profilePhotoUrl || profile?.profilePhotoUrl,
         photoUrls: galleryPhotoUrls.filter(Boolean).slice(0, 3),
-      });
+      };
+      const phoneNumber = draft.phoneNumber.trim();
+      if (phoneNumber) updatePayload.phoneNumber = phoneNumber;
+
+      const updatedProfile = await updateCurrentUserProfile(
+        accessToken,
+        updatePayload,
+      );
 
       await saveAuthSession({ access_token: accessToken, user: updatedProfile });
-      showToast({
-        title: "Profile updated",
-        message: "Your profile changes have been saved.",
-        kind: "success",
-      });
-      router.replace("/profile");
+      router.replace("/profile" as never);
     } catch (error) {
       showToast({
         title: "Failed to save profile",

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Image,
   Modal,
@@ -23,7 +24,8 @@ export default function ProfileScreen() {
   const [imageFailed, setImageFailed] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
-  useEffect(() => {
+  useFocusEffect(
+    useCallback(() => {
     let isMounted = true;
 
     async function loadProfile() {
@@ -45,7 +47,8 @@ export default function ProfileScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+    }, []),
+  );
 
   if (isLoading) {
     return <ProfileSkeleton />;

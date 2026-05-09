@@ -580,9 +580,7 @@ export default function ChatRoomScreen() {
             </View>
             <View className="mt-[3px] flex-row items-center">
               <Text className="font-jakarta text-[11px] text-[#777873]">
-                {isParticipantOnline === null
-                  ? "BeeFriends chat"
-                  : isParticipantOnline
+                {isParticipantOnline
                     ? "Online"
                     : "Offline"}
               </Text>

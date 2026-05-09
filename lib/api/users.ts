@@ -48,36 +48,56 @@ export function updateCurrentUserProfile(
 }
 
 export function uploadChatAttachment(accessToken: string, imageUri: string) {
-  const formData = new FormData();
-
-  formData.append(
-    "image",
-    createFormDataFile(imageUri, "chat-image") as unknown as Blob,
+  return uploadUserImage(
+    accessToken,
+    imageUri,
+    "chat-image",
+    USER_ENDPOINTS.CHAT_ATTACHMENTS,
   );
-
-  return requestJson<UploadedChatAttachment>("/v1/user/users/me/chat-attachments", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: formData,
-  });
 }
 
-export function uploadProfilePhoto(
+export async function uploadProfilePhoto(
   accessToken: string,
   imageUri: string,
   kind: "profile" | "gallery" = "gallery",
+) {
+  try {
+    return await uploadUserImage(
+      accessToken,
+      imageUri,
+      `${kind}-photo`,
+      USER_ENDPOINTS.PROFILE_PHOTOS,
+      { kind },
+    );
+  } catch {
+    return uploadUserImage(
+      accessToken,
+      imageUri,
+      `${kind}-photo`,
+      USER_ENDPOINTS.CHAT_ATTACHMENTS,
+    );
+  }
+}
+
+function uploadUserImage(
+  accessToken: string,
+  imageUri: string,
+  fallbackName: string,
+  endpoint: string,
+  fields: Record<string, string> = {},
 ) {
   const formData = new FormData();
 
   formData.append(
     "image",
-    createFormDataFile(imageUri, `${kind}-photo`) as unknown as Blob,
+    createFormDataFile(imageUri, fallbackName) as unknown as Blob,
   );
-  formData.append("kind", kind);
 
-  return requestJson<UploadedChatAttachment>("/v1/user/users/me/photos", {
+  Object.entries(fields).forEach(([key, value]) => {
+    formData.append(key, value);
+  });
+
+  return requestJson<UploadedChatAttachment>(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
