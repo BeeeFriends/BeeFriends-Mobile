@@ -253,7 +253,7 @@ export default function EditProfileScreen() {
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior="padding"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -296,7 +296,7 @@ export default function EditProfileScreen() {
               contentContainerClassName={isKeyboardOpen ? "pb-80" : "pb-8"}
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets
+              automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
               showsVerticalScrollIndicator={false}
             >
               <View className="rounded-[22px] bg-[#F7F7F7] p-4">
@@ -672,6 +672,7 @@ function EditField({
         }`}
         placeholderTextColor="#8D8D8D"
         onFocus={onFocus}
+        onBlur={Keyboard.dismiss}
         onChangeText={onChangeText}
       />
     </View>

@@ -39,6 +39,22 @@ export async function registerDeviceToken(userId: number, token: string) {
   });
 }
 
+export async function updateDeviceTokenState(
+  userId: number,
+  token: string,
+  isActive: boolean,
+) {
+  return requestJson(`${BASE}/device-tokens/state`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      token,
+      isActive,
+    }),
+  });
+}
+
 export async function markNotificationRead(id: string, userId: number) {
   return requestJson<NotificationItemDto>(`${BASE}/${id}/read`, {
     method: "PATCH",

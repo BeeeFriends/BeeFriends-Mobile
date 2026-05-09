@@ -8,8 +8,9 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { View } from "react-native";
+import { AppState, View } from "react-native";
 import "react-native-reanimated";
+import { getAuthSession } from "../lib/auth/session";
 import "../global.css";
 
 export { ErrorBoundary } from "expo-router";
@@ -46,6 +47,7 @@ export default function RootLayout() {
 function RootLayoutNav() {
   return (
     <ThemeProvider value={DefaultTheme}>
+      <AppForegroundPushSync />
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
@@ -77,4 +79,35 @@ function RootLayoutNav() {
       </Stack>
     </ThemeProvider>
   );
+}
+
+function AppForegroundPushSync() {
+  useEffect(() => {
+    let isDisposed = false;
+
+    async function syncState(appState: string) {
+      const session = await getAuthSession();
+      const userId = session?.user?.id;
+
+      if (!userId || isDisposed) return;
+
+      const shouldReceivePush = appState !== "active";
+
+      import("../lib/notifications/push")
+        .then(({ syncPushDeliveryState }) =>
+          syncPushDeliveryState(userId, shouldReceivePush),
+        )
+        .catch(() => undefined);
+    }
+
+    syncState(AppState.currentState);
+    const subscription = AppState.addEventListener("change", syncState);
+
+    return () => {
+      isDisposed = true;
+      subscription.remove();
+    };
+  }, []);
+
+  return null;
 }

@@ -34,6 +34,7 @@ type ChatItem = {
   isOnline: boolean | null;
   isLastMessageMine: boolean;
   isLastMessageRead: boolean;
+  unreadCount: number;
 };
 
 export default function ChatScreen() {
@@ -106,7 +107,11 @@ export default function ChatScreen() {
         sortConversations(
           currentConversations.map((conversation) =>
             conversation.id === message.conversationId
-              ? updateConversationWithMessage(conversation, message)
+              ? updateConversationWithMessage(
+                  conversation,
+                  message,
+                  currentUserId,
+                )
               : conversation,
           ),
         ),
@@ -137,6 +142,7 @@ export default function ChatScreen() {
                 conversation,
                 event.messageId,
                 event.userId,
+                currentUserId,
               )
             : conversation,
         ),
@@ -252,33 +258,43 @@ function ChatListSkeleton() {
 function updateConversationWithMessage(
   conversation: ConversationDto,
   message: MessageDto,
+  currentUserId: number,
 ): ConversationDto {
+  const currentUnreadCount = getUnreadCount(conversation);
+  const shouldIncrementUnread = message.senderId !== currentUserId;
+
   return {
     ...conversation,
     lastMessageId: message.id,
     lastMessagePreview: getMessagePreview(message),
     lastMessageSenderId: message.senderId,
     lastMessage: mergeMessageReadBy(conversation.lastMessage, message),
+    unreadCount: shouldIncrementUnread
+      ? currentUnreadCount + 1
+      : currentUnreadCount,
     updatedAt: message.updatedAt,
-  };
+  } as ConversationDto & { unreadCount: number };
 }
 
 function applyConversationReadReceipt(
   conversation: ConversationDto,
   messageId: string,
   userId: number,
+  currentUserId: number,
 ): ConversationDto {
   if (conversation.lastMessage?.id !== messageId) return conversation;
 
   return {
     ...conversation,
+    unreadCount:
+      userId === currentUserId ? 0 : getUnreadCount(conversation),
     lastMessage: {
       ...conversation.lastMessage,
       readBy: Array.from(
         new Set([...(conversation.lastMessage.readBy ?? []), userId]),
       ),
     },
-  };
+  } as ConversationDto & { unreadCount: number };
 }
 
 function mergeMessageReadBy(
@@ -393,9 +409,18 @@ function ChatRow({ item }: { item: ChatItem }) {
         </View>
       </View>
 
-      <Text className="ml-2 self-start pt-2 font-jakarta text-[12px] text-[#777873]">
-        {item.time}
-      </Text>
+      <View className="ml-2 min-w-9 items-end self-stretch pt-2">
+        <Text className="font-jakarta text-[12px] text-[#777873]">
+          {item.time}
+        </Text>
+        {item.unreadCount > 0 ? (
+          <View className="mt-2 min-w-6 items-center justify-center rounded-full bg-[#FFE036] px-2 py-[3px]">
+            <Text className="font-jakarta-bold text-[11px] text-[#171819]">
+              {item.unreadCount > 99 ? "99+" : item.unreadCount}
+            </Text>
+          </View>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -442,7 +467,15 @@ function toChatItem(
     isLastMessageRead: Boolean(
       otherUserId && conversation.lastMessage?.readBy?.includes(otherUserId),
     ),
+    unreadCount: getUnreadCount(conversation),
   };
+}
+
+function getUnreadCount(conversation: ConversationDto) {
+  return Number(
+    (conversation as ConversationDto & { unreadCount?: number }).unreadCount ??
+      0,
+  );
 }
 
 function normalizePhotoUri(photoUri: string) {

@@ -29,6 +29,7 @@ import {
   sendMessage,
 } from "../lib/api/conversations";
 import { getUserPresence } from "../lib/api/presence";
+import { uploadChatAttachment } from "../lib/api/users";
 import { getValidAuthSession } from "../lib/auth/session";
 import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
 
@@ -189,6 +190,7 @@ export default function ChatRoomScreen() {
   const participantId = participantIdParam ? Number(participantIdParam) : null;
 
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [accessToken, setAccessToken] = useState("");
   const [conversation, setConversation] =
     useState<ConversationWithMessagesDto | null>(null);
   const [messages, setMessages] = useState<MessageDto[]>([]);
@@ -222,6 +224,7 @@ export default function ChatRoomScreen() {
       }
 
       setCurrentUserId(session.user.id);
+      setAccessToken(session.access_token);
 
       try {
         const nextConversation =
@@ -429,6 +432,7 @@ export default function ChatRoomScreen() {
     if (
       !conversationId ||
       !currentUserId ||
+      (selectedImageUri && !accessToken) ||
       (!content && !selectedImageUri) ||
       isSending
     ) {
@@ -441,7 +445,9 @@ export default function ChatRoomScreen() {
       const nextMessage = await sendMessage({
         conversationId,
         content: content || "Photo",
-        attachmentUrls: selectedImageUri ? [selectedImageUri] : undefined,
+        attachmentUrls: selectedImageUri
+          ? [(await uploadChatAttachment(accessToken, selectedImageUri)).url]
+          : undefined,
       }, currentUserId);
 
       setMessages((currentMessages) =>
@@ -498,7 +504,7 @@ export default function ChatRoomScreen() {
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior="padding"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
@@ -563,7 +569,7 @@ export default function ChatRoomScreen() {
             contentContainerClassName={`pt-5 ${isKeyboardOpen ? "pb-3" : "pb-5"}`}
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets
+            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() =>
               scrollViewRef.current?.scrollToEnd({ animated: true })
@@ -658,6 +664,7 @@ export default function ChatRoomScreen() {
                     scrollViewRef.current?.scrollToEnd({ animated: true });
                   });
                 }}
+                onBlur={() => setIsKeyboardOpen(false)}
                 onChangeText={setMessageText}
               />
             </View>
@@ -721,11 +728,9 @@ function MessageBubble({
         {attachmentUrls.length ? (
           <View className={textContent ? "px-2 pb-2" : "p-1"}>
             {attachmentUrls.map((attachmentUrl) => (
-              <Image
+              <AttachmentImage
                 key={attachmentUrl}
-                source={{ uri: normalizeAttachmentUri(attachmentUrl) }}
-                className="h-56 w-56 rounded-[18px]"
-                resizeMode="cover"
+                uri={normalizeAttachmentUri(attachmentUrl)}
               />
             ))}
           </View>
@@ -737,6 +742,30 @@ function MessageBubble({
         time={formatMessageTime(message.timestamp || message.createdAt)}
       />
     </View>
+  );
+}
+
+function AttachmentImage({ uri }: { uri: string }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError || !uri) {
+    return (
+      <View className="h-56 w-56 items-center justify-center rounded-[18px] bg-[#F1F1F1]">
+        <Ionicons name="image-outline" size={34} color="#777873" />
+        <Text className="mt-2 font-jakarta-semibold text-[12px] text-[#777873]">
+          Image unavailable
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri }}
+      className="h-56 w-56 rounded-[18px]"
+      resizeMode="cover"
+      onError={() => setHasError(true)}
+    />
   );
 }
 
