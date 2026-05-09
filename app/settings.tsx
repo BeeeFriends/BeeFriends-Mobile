@@ -68,6 +68,11 @@ export default function SettingsScreen() {
 
           <SectionHeader title="Account" />
           <SettingRow
+            icon="person-outline"
+            title="Account"
+            onPress={() => router.push("/account" as never)}
+          />
+          <SettingRow
             icon="log-out-outline"
             title="Logout"
             tone="danger"

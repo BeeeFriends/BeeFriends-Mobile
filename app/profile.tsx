@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   Image,
@@ -13,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
 import { PersonIcon } from "../components/icons";
-import { BottomNav } from "../components/BottomNav";
+import { MainTabScreen } from "../components/MainTabScreen";
 import { SkeletonBlock } from "../components/SkeletonBlock";
 import { API_BASE_URL } from "../lib/api/client";
 import { getValidAuthSession } from "../lib/auth/session";
@@ -60,9 +59,7 @@ export default function ProfileScreen() {
   const hobbies = profile?.hobbies ?? [];
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
-      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
+    <MainTabScreen active="profile" borderedNav>
         <ScrollView
           className="flex-1"
           contentContainerClassName="pb-5"
@@ -177,22 +174,17 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
 
-        <BottomNav active="profile" bordered />
-      </View>
-
       <ImagePreviewModal
         uri={previewUri}
         onClose={() => setPreviewUri(null)}
       />
-    </SafeAreaView>
+    </MainTabScreen>
   );
 }
 
 function ProfileSkeleton() {
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
-      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
+    <MainTabScreen active="profile" borderedNav>
         <ScrollView
           className="flex-1"
           contentContainerClassName="pb-5"
@@ -233,10 +225,7 @@ function ProfileSkeleton() {
             </View>
           </View>
         </ScrollView>
-
-        <BottomNav active="profile" bordered />
-      </View>
-    </SafeAreaView>
+    </MainTabScreen>
   );
 }
 

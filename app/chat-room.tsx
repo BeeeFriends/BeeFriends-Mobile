@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type {
   ConversationWithMessagesDto,
   MessageDto,
@@ -26,6 +26,7 @@ import { ToastBanner, useToast } from "../components/ToastBanner";
 import { API_BASE_URL } from "../lib/api/client";
 import {
   getConversationWithMessages,
+  markMessageRead,
   sendMessage,
 } from "../lib/api/conversations";
 import { getUserPresence } from "../lib/api/presence";
@@ -170,6 +171,7 @@ const emojiCategories = [
 ] as const;
 
 export default function ChatRoomScreen() {
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     conversationId?: string;
     name?: string;
@@ -381,6 +383,9 @@ export default function ChatRoomScreen() {
         messageId,
         userId: currentUserId,
       });
+      markMessageRead(conversationId, messageId, currentUserId).catch(() => {
+        readReceiptsSentRef.current.delete(messageId);
+      });
     });
 
     setMessages((currentMessages) =>
@@ -430,6 +435,9 @@ export default function ChatRoomScreen() {
   const activeEmojiCategory =
     emojiCategories.find((category) => category.id === activeEmojiCategoryId) ??
     emojiCategories[0];
+  const composerBottomPadding = isKeyboardOpen
+    ? 8
+    : Math.max(insets.bottom, 16);
 
   const handleSend = async () => {
     const content = messageText.trim();
@@ -513,12 +521,12 @@ export default function ChatRoomScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
@@ -616,9 +624,8 @@ export default function ChatRoomScreen() {
         )}
 
         <View
-          className={`border-t border-[#F1F1F1] bg-white px-4 pt-3 ${
-            isKeyboardOpen ? "pb-2" : "pb-4"
-          }`}
+          className="border-t border-[#F1F1F1] bg-white px-4 pt-3"
+          style={{ paddingBottom: composerBottomPadding }}
         >
           {selectedImageUri ? (
             <View className="mb-3 flex-row items-center rounded-3xl bg-[#F7F7F7] p-2">

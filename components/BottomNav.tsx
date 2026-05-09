@@ -9,8 +9,10 @@ type BottomNavRoute = "home" | "matches" | "chat" | "profile";
 type BottomNavProps = {
   active: BottomNavRoute;
   bordered?: boolean;
-  heightClassName?: string;
 };
+
+const NAV_HEIGHT_CLASS = "h-[62px]";
+const ICON_SIZE = 27;
 
 const TABS: Array<{
   route: BottomNavRoute;
@@ -27,13 +29,12 @@ const TABS: Array<{
 export function BottomNav({
   active,
   bordered = false,
-  heightClassName = "h-[62px]",
 }: BottomNavProps) {
   useMainTabBackBehavior(active);
 
   return (
     <View
-      className={`${heightClassName} w-full flex-row items-center bg-white px-4 ${
+      className={`${NAV_HEIGHT_CLASS} w-full flex-row items-center bg-white px-4 ${
         bordered ? "border-t border-[#F1F1F1]" : ""
       }`}
     >
@@ -136,28 +137,28 @@ function BottomNavItem({
               <CardIcon
                 color={color}
                 fillColor={active ? "#FFEA00" : "#FFFFFF"}
-                size={27}
+                size={ICON_SIZE}
               />
             )}
             {icon === "hand" && (
               <HandIcon
                 color={color}
                 fillColor={active ? "#FFEA00" : undefined}
-                size={27}
+                size={ICON_SIZE}
               />
             )}
             {icon === "chat" && (
               <ChatIcon
                 color={color}
                 fillColor={active ? "#FFEA00" : "#FFFFFF"}
-                size={27}
+                size={ICON_SIZE}
               />
             )}
             {icon === "person" && (
               <PersonIcon
                 color={color}
                 fillColor={active ? "#FFEA00" : "#FFFFFF"}
-                size={27}
+                size={ICON_SIZE}
               />
             )}
           </Animated.View>

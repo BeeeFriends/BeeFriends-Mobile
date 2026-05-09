@@ -2,21 +2,28 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NotificationItemDto } from "@beefriends/shared-kernel/dto/notification";
+import type { UserProfileDto } from "@beefriends/shared-kernel/types";
 import { SkeletonBlock } from "../components/SkeletonBlock";
 import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from "../lib/api/notifications";
+import { API_BASE_URL } from "../lib/api/client";
+import { getUserProfileById } from "../lib/api/users";
 import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
 
+type EnrichedNotification = NotificationItemDto & {
+  senderProfile?: UserProfileDto | null;
+};
+
 export default function NotificationsScreen() {
   const [userId, setUserId] = useState<number | null>(null);
-  const [notifications, setNotifications] = useState<NotificationItemDto[]>([]);
+  const [notifications, setNotifications] = useState<EnrichedNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +40,44 @@ export default function NotificationsScreen() {
 
       try {
         const nextNotifications = await getNotifications(session.user.id);
-        if (isMounted) setNotifications(nextNotifications);
+        const chatSenderIds = Array.from(
+          new Set(
+            nextNotifications
+              .filter((notification) => notification.type === "CHAT")
+              .map((notification) =>
+                Number(notification.data?.senderId ?? NaN),
+              )
+              .filter((userId) => Number.isInteger(userId) && userId > 0),
+          ),
+        );
+        const senderProfiles = await Promise.all(
+          chatSenderIds.map((senderId) =>
+            getUserProfileById(session.access_token, senderId).catch(
+              () => null,
+            ),
+          ),
+        );
+        const senderProfileById = new Map(
+          senderProfiles
+            .filter((profile): profile is UserProfileDto => Boolean(profile))
+            .map((profile) => [profile.id, profile] as const),
+        );
+
+        if (!isMounted) return;
+
+        setNotifications(
+          nextNotifications.map((notification) => {
+            const senderId = Number(notification.data?.senderId ?? NaN);
+
+            return {
+              ...notification,
+              senderProfile:
+                notification.type === "CHAT" && Number.isInteger(senderId)
+                  ? senderProfileById.get(senderId) ?? null
+                  : null,
+            };
+          }),
+        );
       } catch {
         if (isMounted) setNotifications([]);
       } finally {
@@ -48,7 +92,7 @@ export default function NotificationsScreen() {
     };
   }, []);
 
-  const openNotification = async (notification: NotificationItemDto) => {
+  const openNotification = async (notification: EnrichedNotification) => {
     if (userId && !notification.isRead) {
       setNotifications((current) =>
         current.map((item) =>
@@ -59,9 +103,21 @@ export default function NotificationsScreen() {
     }
 
     if (notification.type === "CHAT" && notification.data?.conversationId) {
+      const senderId = Number(notification.data.senderId ?? NaN);
+      const senderProfile = notification.senderProfile ?? null;
+
       router.push({
         pathname: "/chat-room",
-        params: { conversationId: notification.data.conversationId },
+        params: {
+          conversationId: notification.data.conversationId,
+          participantId:
+            Number.isInteger(senderId) && senderId > 0
+              ? String(senderId)
+              : "",
+          name: senderProfile?.displayName?.trim() || notification.title || "Chat",
+          photoUrl: getProfilePhotoUri(senderProfile),
+          profile: senderProfile ? JSON.stringify(senderProfile) : "",
+        },
       });
       return;
     }
@@ -154,9 +210,11 @@ function NotificationRow({
   notification,
   onPress,
 }: {
-  notification: NotificationItemDto;
+  notification: EnrichedNotification;
   onPress: () => void;
 }) {
+  const isChat = notification.type === "CHAT";
+  const avatarUri = isChat ? getProfilePhotoUri(notification.senderProfile) : "";
   const iconName =
     notification.type === "MATCH" ? "heart-outline" : "chatbubble-outline";
 
@@ -166,13 +224,21 @@ function NotificationRow({
       accessibilityRole="button"
       onPress={onPress}
     >
-      <View className="h-11 w-11 items-center justify-center rounded-full bg-[#FFF7BE]">
-        <Ionicons name={iconName} size={21} color="#171819" />
+      <View className="h-11 w-11 overflow-hidden rounded-full bg-[#FFF7BE]">
+        {isChat && avatarUri ? (
+          <Image source={{ uri: avatarUri }} className="h-full w-full" resizeMode="cover" />
+        ) : (
+          <View className="h-full w-full items-center justify-center">
+            <Ionicons name={iconName} size={21} color="#171819" />
+          </View>
+        )}
       </View>
       <View className="ml-3 flex-1">
         <View className="flex-row items-start">
           <Text className="flex-1 font-jakarta-bold text-[14px] leading-5 text-[#171819]">
-            {notification.title}
+            {isChat && notification.senderProfile?.displayName
+              ? notification.senderProfile.displayName
+              : notification.title}
           </Text>
           {!notification.isRead && (
             <View className="ml-2 mt-[6px] h-2 w-2 rounded-full bg-[#FFF06A]" />
@@ -196,4 +262,30 @@ function NotificationSkeleton() {
       </View>
     </View>
   );
+}
+
+function getProfilePhotoUri(profile?: UserProfileDto | null) {
+  const photoUri =
+    profile?.profilePhotoUrl ||
+    profile?.photos?.find((photo) => photo.isProfile)?.url ||
+    profile?.photos?.[0]?.url ||
+    "";
+
+  if (!photoUri) return "";
+
+  if (
+    photoUri.startsWith("http://") ||
+    photoUri.startsWith("https://") ||
+    photoUri.startsWith("file://") ||
+    photoUri.startsWith("content://") ||
+    photoUri.startsWith("data:")
+  ) {
+    return photoUri;
+  }
+
+  if (photoUri.startsWith("/")) {
+    return `${API_BASE_URL}${photoUri}`;
+  }
+
+  return photoUri;
 }

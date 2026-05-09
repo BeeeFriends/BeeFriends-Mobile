@@ -1,9 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type {
   ConversationDto,
   MatchDto,
@@ -15,7 +13,7 @@ import {
   PersonIcon,
   SearchIcon,
 } from "../components/icons";
-import { BottomNav } from "../components/BottomNav";
+import { MainTabScreen } from "../components/MainTabScreen";
 import { SkeletonBlock } from "../components/SkeletonBlock";
 import { API_BASE_URL } from "../lib/api/client";
 import { getUserConversations } from "../lib/api/conversations";
@@ -175,9 +173,7 @@ export default function ChatScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
-      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white px-5 pt-8">
+    <MainTabScreen active="chat" borderedNav contentClassName="px-5 pt-8">
         <View className="flex-row items-center justify-between">
           <Text className="font-jakarta-bold text-[24px] text-[#171819]">
             Chat
@@ -216,10 +212,7 @@ export default function ChatScreen() {
             chatItems.map((item) => <ChatRow key={item.id} item={item} />)
           )}
         </ScrollView>
-
-        <BottomNav active="chat" bordered />
-      </View>
-    </SafeAreaView>
+    </MainTabScreen>
   );
 }
 

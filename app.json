@@ -23,6 +23,7 @@
         "monochromeImage": "./assets/images/beefriends_logo.png"
       },
       "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "package": "com.drian0512.BeeFriendsFE"
     },

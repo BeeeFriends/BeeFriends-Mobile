@@ -25,6 +25,14 @@ export function getCurrentUserProfile(accessToken: string) {
   });
 }
 
+export function getUserProfileById(accessToken: string, userId: number) {
+  return requestJson<UserProfileDto>(USER_ENDPOINTS.BY_ID(userId), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
 export function updateCurrentUserProfile(
   accessToken: string,
   payload: UpdateUserDto,
@@ -48,6 +56,28 @@ export function uploadChatAttachment(accessToken: string, imageUri: string) {
   );
 
   return requestJson<UploadedChatAttachment>("/v1/user/users/me/chat-attachments", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+}
+
+export function uploadProfilePhoto(
+  accessToken: string,
+  imageUri: string,
+  kind: "profile" | "gallery" = "gallery",
+) {
+  const formData = new FormData();
+
+  formData.append(
+    "image",
+    createFormDataFile(imageUri, `${kind}-photo`) as unknown as Blob,
+  );
+  formData.append("kind", kind);
+
+  return requestJson<UploadedChatAttachment>("/v1/user/users/me/photos", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,

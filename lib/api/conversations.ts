@@ -45,3 +45,21 @@ export function sendMessage(payload: CreateMessageDto, senderId: number) {
     body: JSON.stringify(payload),
   });
 }
+
+export function markMessageRead(
+  conversationId: string,
+  messageId: string,
+  userId: number,
+) {
+  const query = new URLSearchParams({
+    conversationId,
+    userId: String(userId),
+  });
+
+  return requestJson<MessageDto>(
+    `${MESSAGE_ENDPOINTS.SEND}/${messageId}/read?${query.toString()}`,
+    {
+      method: "POST",
+    },
+  );
+}

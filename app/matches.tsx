@@ -1,5 +1,4 @@
 import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -10,7 +9,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type { MatchDto, MatchProfileDto } from "@beefriends/shared-kernel/dto/chat";
 import {
   CommentIcon,
@@ -19,7 +17,7 @@ import {
   PersonIcon,
   SubstrackIcon,
 } from "../components/icons";
-import { BottomNav } from "../components/BottomNav";
+import { MainTabScreen } from "../components/MainTabScreen";
 import { SkeletonBlock } from "../components/SkeletonBlock";
 import { ToastBanner, useToast } from "../components/ToastBanner";
 import { API_BASE_URL } from "../lib/api/client";
@@ -152,10 +150,8 @@ export default function MatchesScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
+    <MainTabScreen active="matches" contentClassName="px-6 pt-10">
       <ToastBanner toast={toast} onDismiss={hideToast} />
-      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white px-6 pt-10">
         <View className="flex-row items-center justify-between">
           <Text className="font-jakarta-bold text-[22px] leading-7 text-[#171819]">
             Matches
@@ -204,9 +200,6 @@ export default function MatchesScreen() {
             ))
           )}
         </ScrollView>
-
-        <BottomNav active="matches" heightClassName="h-[74px]" />
-      </View>
       <RemoveMatchModal
         match={matchToRemove}
         isRemoving={Boolean(matchToRemove && activeActionId === matchToRemove.id)}
@@ -217,7 +210,7 @@ export default function MatchesScreen() {
           if (matchToRemove) removeMatch(matchToRemove.id);
         }}
       />
-    </SafeAreaView>
+    </MainTabScreen>
   );
 }
 

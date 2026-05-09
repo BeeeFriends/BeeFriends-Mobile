@@ -5,7 +5,6 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -22,13 +21,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
 import { PersonIcon } from "../components/icons";
 import { SkeletonBlock } from "../components/SkeletonBlock";
+import { ToastBanner, useToast } from "../components/ToastBanner";
 import { getCampusOptions } from "../lib/api/campus";
 import { API_BASE_URL } from "../lib/api/client";
 import { getHobbyOptions } from "../lib/api/hobbies";
 import { getMajorOptions } from "../lib/api/majors";
 import type { SelectOption } from "../lib/api/types";
 import { getValidAuthSession, saveAuthSession } from "../lib/auth/session";
-import { updateCurrentUserProfile } from "../lib/api/users";
+import { updateCurrentUserProfile, uploadProfilePhoto } from "../lib/api/users";
 import { goBackOrReplace } from "../lib/navigation/back";
 
 type EditProfileDraft = {
@@ -55,6 +55,7 @@ export default function EditProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const { toast, showToast, hideToast } = useToast();
 
   useEffect(() => {
     let isMounted = true;
@@ -98,10 +99,10 @@ export default function EditProfileScreen() {
           hobbyIds: session.user.hobbies?.map((hobby) => String(hobby.id)) ?? [],
         });
       } catch (error) {
-        Alert.alert(
-          "Failed to load profile",
-          error instanceof Error ? error.message : "Please try again.",
-        );
+        showToast({
+          title: "Failed to load profile",
+          message: getErrorMessage(error),
+        });
       } finally {
         if (isMounted) {
           setIsMasterDataLoading(false);
@@ -151,7 +152,7 @@ export default function EditProfileScreen() {
   };
 
   const pickProfilePhoto = async () => {
-    const uri = await pickImageFromLibrary();
+    const uri = await pickImageFromLibrary(showToast);
     if (!uri) return;
 
     updateDraft({ profilePhotoUrl: uri });
@@ -160,7 +161,7 @@ export default function EditProfileScreen() {
   const pickGalleryPhoto = async (index?: number) => {
     if (!draft) return;
 
-    const uri = await pickImageFromLibrary();
+    const uri = await pickImageFromLibrary(showToast);
     if (!uri) return;
 
     const nextPhotoUrls = [...draft.photoUrls];
@@ -199,28 +200,54 @@ export default function EditProfileScreen() {
     const age = Number(draft.age);
 
     if (!displayName) {
-      Alert.alert("Profile incomplete", "Display name cannot be empty.");
+      showToast({
+        title: "Profile incomplete",
+        message: "Display name cannot be empty.",
+      });
       return;
     }
 
     if (!Number.isFinite(age) || age < 16 || age > 99) {
-      Alert.alert("Profile incomplete", "Age must be between 16 and 99.");
+      showToast({
+        title: "Profile incomplete",
+        message: "Age must be between 16 and 99.",
+      });
       return;
     }
 
     if (!draft.campusId || !draft.majorId) {
-      Alert.alert("Profile incomplete", "Please choose your campus and major.");
+      showToast({
+        title: "Profile incomplete",
+        message: "Please choose your campus and major.",
+      });
       return;
     }
 
     if (draft.hobbyIds.length === 0) {
-      Alert.alert("Profile incomplete", "Please choose at least one hobby.");
+      showToast({
+        title: "Profile incomplete",
+        message: "Please choose at least one hobby.",
+      });
       return;
     }
 
     setIsSaving(true);
 
     try {
+      const profilePhotoUrl = await resolveUploadedPhotoUrl(
+        accessToken,
+        draft.profilePhotoUrl,
+        "profile",
+      );
+      const galleryPhotoUrls = await Promise.all(
+        draft.photoUrls
+          .filter(Boolean)
+          .slice(0, 3)
+          .map((photoUri) =>
+            resolveUploadedPhotoUrl(accessToken, photoUri, "gallery"),
+          ),
+      );
+
       const updatedProfile = await updateCurrentUserProfile(accessToken, {
         displayName,
         phoneNumber: draft.phoneNumber.trim(),
@@ -229,17 +256,22 @@ export default function EditProfileScreen() {
         campusId: Number(draft.campusId),
         majorId: Number(draft.majorId),
         hobbyIds: draft.hobbyIds.map(Number),
-        profilePhotoUrl: draft.profilePhotoUrl || profile?.profilePhotoUrl,
-        photoUrls: draft.photoUrls.filter(Boolean).slice(0, 3),
+        profilePhotoUrl: profilePhotoUrl || profile?.profilePhotoUrl,
+        photoUrls: galleryPhotoUrls.filter(Boolean).slice(0, 3),
       });
 
       await saveAuthSession({ access_token: accessToken, user: updatedProfile });
+      showToast({
+        title: "Profile updated",
+        message: "Your profile changes have been saved.",
+        kind: "success",
+      });
       router.replace("/profile");
     } catch (error) {
-      Alert.alert(
-        "Failed to save profile",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      showToast({
+        title: "Failed to save profile",
+        message: getErrorMessage(error),
+      });
     } finally {
       setIsSaving(false);
     }
@@ -252,6 +284,7 @@ export default function EditProfileScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
+      <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -704,14 +737,20 @@ function EditProfileSkeleton() {
   );
 }
 
-async function pickImageFromLibrary() {
+async function pickImageFromLibrary(
+  showToast: (toast: {
+    title: string;
+    message?: string;
+    kind?: "error";
+  }) => void,
+) {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
   if (!permission.granted) {
-    Alert.alert(
-      "Photo access needed",
-      "Please allow photo access to update your profile photos.",
-    );
+    showToast({
+      title: "Photo access needed",
+      message: "Please allow photo access to update your profile photos.",
+    });
     return "";
   }
 
@@ -725,6 +764,30 @@ async function pickImageFromLibrary() {
   if (result.canceled) return "";
 
   return result.assets[0]?.uri ?? "";
+}
+
+async function resolveUploadedPhotoUrl(
+  accessToken: string,
+  photoUri: string,
+  kind: "profile" | "gallery",
+) {
+  if (!photoUri) return "";
+  if (!isLocalPhotoUri(photoUri)) return photoUri;
+
+  const uploadedPhoto = await uploadProfilePhoto(accessToken, photoUri, kind);
+  return uploadedPhoto.url;
+}
+
+function isLocalPhotoUri(photoUri: string) {
+  return (
+    photoUri.startsWith("file://") ||
+    photoUri.startsWith("content://") ||
+    photoUri.startsWith("ph://")
+  );
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Please try again.";
 }
 
 function getProfilePhotoUri(profile: UserProfileDto | null) {

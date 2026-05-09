@@ -1,9 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type {
   MatchDecision,
   MatchProfileDto,
@@ -16,7 +14,7 @@ import {
   PersonIcon,
   SettingIcon,
 } from "../components/icons";
-import { BottomNav } from "../components/BottomNav";
+import { MainTabScreen } from "../components/MainTabScreen";
 import { SkeletonBlock } from "../components/SkeletonBlock";
 import { API_BASE_URL } from "../lib/api/client";
 import { getValidAuthSession } from "../lib/auth/session";
@@ -124,9 +122,7 @@ export default function HomeScreen() {
   const hasCandidate = Boolean(user);
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
-      <View className="mx-auto w-full max-w-[430px] flex-1 px-3 pb-3 pt-4">
+    <MainTabScreen active="home" contentClassName="px-3 pt-4">
         <View className="flex-row items-center justify-between px-1">
           <Image
             source={require("../assets/images/beefriends_title.png")}
@@ -233,10 +229,7 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-
-        <BottomNav active="home" heightClassName="h-[58px]" />
-      </View>
-    </SafeAreaView>
+    </MainTabScreen>
   );
 }
 
@@ -250,9 +243,7 @@ function registerPushToken(userId: number) {
 
 function ExploreSkeleton() {
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
-      <View className="mx-auto w-full max-w-[430px] flex-1 px-3 pb-3 pt-4">
+    <MainTabScreen active="home" contentClassName="px-3 pt-4">
         <View className="flex-row items-center justify-between px-1">
           <Image
             source={require("../assets/images/beefriends_title.png")}
@@ -265,10 +256,7 @@ function ExploreSkeleton() {
         <View className="mt-2 flex-1 items-center">
           <ExploreCardSkeleton />
         </View>
-
-        <BottomNav active="home" heightClassName="h-[58px]" />
-      </View>
-    </SafeAreaView>
+    </MainTabScreen>
   );
 }
 
