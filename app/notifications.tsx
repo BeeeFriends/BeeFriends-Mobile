@@ -16,7 +16,11 @@ import { API_BASE_URL } from "../lib/api/client";
 import { getUserProfileById } from "../lib/api/users";
 import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
-import { setUnreadNotificationCount } from "../lib/notifications/unreadNotifications";
+import {
+  countUnreadNotifications,
+  isNotificationUnread,
+  setUnreadNotificationCount,
+} from "../lib/notifications/unreadNotifications";
 
 type EnrichedNotification = NotificationItemDto & {
   senderProfile?: UserProfileDto | null;
@@ -77,10 +81,7 @@ export default function NotificationsScreen() {
         });
 
         setNotifications(enrichedNotifications);
-        setUnreadNotificationCount(
-          enrichedNotifications.filter((notification) => !notification.isRead)
-            .length,
-        );
+        setUnreadNotificationCount(countUnreadNotifications(enrichedNotifications));
       } catch {
         if (showLoading) {
           setNotifications([]);
@@ -114,14 +115,12 @@ export default function NotificationsScreen() {
   }, [loadNotifications]);
 
   const openNotification = async (notification: EnrichedNotification) => {
-    if (userId && !notification.isRead) {
+    if (userId && isNotificationUnread(notification)) {
       setNotifications((current) => {
         const nextNotifications = current.map((item) =>
           item.id === notification.id ? { ...item, isRead: true } : item,
         );
-        setUnreadNotificationCount(
-          nextNotifications.filter((item) => !item.isRead).length,
-        );
+        setUnreadNotificationCount(countUnreadNotifications(nextNotifications));
         return nextNotifications;
       });
       await markNotificationRead(notification.id, userId).catch(() => undefined);
@@ -266,7 +265,7 @@ function NotificationRow({
               ? notification.senderProfile.displayName
               : notification.title}
           </Text>
-          {!notification.isRead && (
+          {isNotificationUnread(notification) && (
             <View className="ml-2 mt-[6px] h-2 w-2 rounded-full bg-[#FFF06A]" />
           )}
         </View>

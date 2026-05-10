@@ -9,6 +9,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -182,6 +183,13 @@ export default function ChatRoomScreen() {
   }>();
   const messageListRef = useRef<FlatList<MessageDto>>(null);
   const readReceiptsSentRef = useRef<Set<string>>(new Set());
+  const isTypingRef = useRef(false);
+  const typingStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const remoteTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const conversationId = Array.isArray(params.conversationId)
     ? params.conversationId[0]
     : params.conversationId;
@@ -204,12 +212,14 @@ export default function ChatRoomScreen() {
   const [messages, setMessages] = useState<MessageDto[]>([]);
   const [messageText, setMessageText] = useState("");
   const [selectedImageUri, setSelectedImageUri] = useState("");
+  const [previewImageUri, setPreviewImageUri] = useState("");
   const [isEmojiTrayOpen, setIsEmojiTrayOpen] = useState(false);
   const [activeEmojiCategoryId, setActiveEmojiCategoryId] =
     useState<(typeof emojiCategories)[number]["id"]>("recent");
   const [isParticipantOnline, setIsParticipantOnline] = useState<boolean | null>(
     null,
   );
+  const [isParticipantTyping, setIsParticipantTyping] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -284,6 +294,10 @@ export default function ChatRoomScreen() {
     const handleMessageReceived = (message: MessageDto) => {
       if (message.conversationId !== conversationId) return;
 
+      if (message.senderId !== currentUserId) {
+        setIsParticipantTyping(false);
+      }
+
       setMessages((currentMessages) =>
         mergeMessageList(currentMessages, message),
       );
@@ -319,15 +333,51 @@ export default function ChatRoomScreen() {
         applyReadReceipt(currentMessages, event.messageId, event.userId),
       );
     };
+    const handleTypingStart = (event: {
+      conversationId: string;
+      userId: number;
+    }) => {
+      if (event.conversationId !== conversationId) return;
+      if (event.userId === currentUserId) return;
+      if (participantId && event.userId !== participantId) return;
+
+      setIsParticipantTyping(true);
+      if (remoteTypingTimeoutRef.current) {
+        clearTimeout(remoteTypingTimeoutRef.current);
+      }
+      remoteTypingTimeoutRef.current = setTimeout(() => {
+        setIsParticipantTyping(false);
+      }, 2500);
+    };
+    const handleTypingStop = (event: {
+      conversationId: string;
+      userId: number;
+    }) => {
+      if (event.conversationId !== conversationId) return;
+      if (event.userId === currentUserId) return;
+      if (participantId && event.userId !== participantId) return;
+
+      setIsParticipantTyping(false);
+      if (remoteTypingTimeoutRef.current) {
+        clearTimeout(remoteTypingTimeoutRef.current);
+        remoteTypingTimeoutRef.current = null;
+      }
+    };
 
     if (socket.connected) joinConversation();
     socket.on("connect", joinConversation);
     socket.on(CHAT_EVENTS.MESSAGE_RECEIVED, handleMessageReceived);
     socket.on(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
     socket.on(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
+    socket.on(CHAT_EVENTS.TYPING_START, handleTypingStart);
+    socket.on(CHAT_EVENTS.TYPING_STOP, handleTypingStop);
 
     return () => {
       socket.emit(CHAT_EVENTS.LEAVE_CONVERSATION, {
+        conversationId,
+        userId: currentUserId,
+      });
+      socket.emit(CHAT_EVENTS.TYPING_STOP, {
         conversationId,
         userId: currentUserId,
       });
@@ -335,6 +385,8 @@ export default function ChatRoomScreen() {
       socket.off(CHAT_EVENTS.MESSAGE_RECEIVED, handleMessageReceived);
       socket.off(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
       socket.off(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
+      socket.off(CHAT_EVENTS.TYPING_START, handleTypingStart);
+      socket.off(CHAT_EVENTS.TYPING_STOP, handleTypingStop);
     };
   }, [conversationId, currentUserId, participantId, refreshConversationMessages]);
 
@@ -371,6 +423,14 @@ export default function ChatRoomScreen() {
       messageListRef.current?.scrollToEnd({ animated: true });
     });
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!isParticipantTyping) return;
+
+    requestAnimationFrame(() => {
+      messageListRef.current?.scrollToEnd({ animated: true });
+    });
+  }, [isParticipantTyping]);
 
   useEffect(() => {
     if (!conversationId || !currentUserId || isLoading) return;
@@ -465,6 +525,67 @@ export default function ChatRoomScreen() {
   const composerBottomPadding = isKeyboardOpen
     ? 8
     : Math.max(insets.bottom, 16);
+  const participantStatus = isParticipantTyping
+    ? "Typing..."
+    : isParticipantOnline
+      ? "Online"
+      : "Offline";
+
+  const emitTypingStop = useCallback(() => {
+    if (typingStopTimeoutRef.current) {
+      clearTimeout(typingStopTimeoutRef.current);
+      typingStopTimeoutRef.current = null;
+    }
+
+    if (!conversationId || !currentUserId || !isTypingRef.current) return;
+
+    isTypingRef.current = false;
+    getChatSocket(currentUserId).emit(CHAT_EVENTS.TYPING_STOP, {
+      conversationId,
+      userId: currentUserId,
+    });
+  }, [conversationId, currentUserId]);
+
+  const emitTypingStart = useCallback(() => {
+    if (!conversationId || !currentUserId) return;
+
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      getChatSocket(currentUserId).emit(CHAT_EVENTS.TYPING_START, {
+        conversationId,
+        userId: currentUserId,
+      });
+    }
+
+    if (typingStopTimeoutRef.current) {
+      clearTimeout(typingStopTimeoutRef.current);
+    }
+    typingStopTimeoutRef.current = setTimeout(emitTypingStop, 1300);
+  }, [conversationId, currentUserId, emitTypingStop]);
+
+  const handleMessageTextChange = (text: string) => {
+    setMessageText(text);
+
+    if (text.trim()) {
+      emitTypingStart();
+      return;
+    }
+
+    emitTypingStop();
+  };
+
+  useEffect(
+    () => () => {
+      if (typingStopTimeoutRef.current) {
+        clearTimeout(typingStopTimeoutRef.current);
+      }
+      if (remoteTypingTimeoutRef.current) {
+        clearTimeout(remoteTypingTimeoutRef.current);
+      }
+      emitTypingStop();
+    },
+    [emitTypingStop],
+  );
 
   const handleSend = async () => {
     const content = messageText.trim();
@@ -480,6 +601,7 @@ export default function ChatRoomScreen() {
     }
 
     setIsSending(true);
+    emitTypingStop();
 
     try {
       const nextMessage = await sendMessage({
@@ -530,7 +652,11 @@ export default function ChatRoomScreen() {
   };
 
   const addEmoji = (emoji: string) => {
-    setMessageText((currentText) => `${currentText}${emoji}`);
+    setMessageText((currentText) => {
+      const nextText = `${currentText}${emoji}`;
+      if (nextText.trim()) emitTypingStart();
+      return nextText;
+    });
   };
 
   const toggleEmojiTray = () => {
@@ -606,10 +732,12 @@ export default function ChatRoomScreen() {
               </Text>
             </View>
             <View className="mt-[3px] flex-row items-center">
-              <Text className="font-jakarta text-[11px] text-[#777873]">
-                {isParticipantOnline
-                    ? "Online"
-                    : "Offline"}
+              <Text
+                className={`font-jakarta text-[11px] ${
+                  isParticipantTyping ? "text-[#2F80ED]" : "text-[#777873]"
+                }`}
+              >
+                {participantStatus}
               </Text>
             </View>
           </Pressable>
@@ -646,11 +774,15 @@ export default function ChatRoomScreen() {
                 </Text>
               </View>
             }
+            ListFooterComponent={
+              isParticipantTyping ? <TypingIndicatorBubble /> : null
+            }
             renderItem={({ item: message }) => (
               <MessageBubble
                 message={message}
                 isMine={message.senderId === currentUserId}
                 participantId={participantId}
+                onPreviewImage={setPreviewImageUri}
               />
             )}
           />
@@ -733,7 +865,7 @@ export default function ChatRoomScreen() {
                   });
                 }}
 
-                onChangeText={setMessageText}
+                onChangeText={handleMessageTextChange}
               />
             </View>
 
@@ -756,6 +888,10 @@ export default function ChatRoomScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+      <ImagePreviewModal
+        uri={previewImageUri}
+        onClose={() => setPreviewImageUri("")}
+      />
     </SafeAreaView>
   );
 }
@@ -764,10 +900,12 @@ function MessageBubble({
   message,
   isMine,
   participantId,
+  onPreviewImage,
 }: {
   message: MessageDto;
   isMine: boolean;
   participantId: number | null;
+  onPreviewImage: (uri: string) => void;
 }) {
   const attachmentUrls = message.attachmentUrls ?? [];
   const textContent =
@@ -799,6 +937,7 @@ function MessageBubble({
               <AttachmentImage
                 key={attachmentUrl}
                 uri={normalizeAttachmentUri(attachmentUrl)}
+                onPress={onPreviewImage}
               />
             ))}
           </View>
@@ -813,7 +952,13 @@ function MessageBubble({
   );
 }
 
-function AttachmentImage({ uri }: { uri: string }) {
+function AttachmentImage({
+  uri,
+  onPress,
+}: {
+  uri: string;
+  onPress: (uri: string) => void;
+}) {
   const [hasError, setHasError] = useState(false);
 
   if (hasError || !uri) {
@@ -828,12 +973,81 @@ function AttachmentImage({ uri }: { uri: string }) {
   }
 
   return (
-    <Image
-      source={{ uri }}
-      className="h-56 w-56 rounded-[18px]"
-      resizeMode="cover"
-      onError={() => setHasError(true)}
-    />
+    <Pressable
+      accessibilityRole="imagebutton"
+      accessibilityLabel="Preview image"
+      onPress={() => onPress(uri)}
+    >
+      <Image
+        source={{ uri }}
+        className="h-56 w-56 rounded-[18px]"
+        resizeMode="cover"
+        onError={() => setHasError(true)}
+      />
+    </Pressable>
+  );
+}
+
+function TypingIndicatorBubble() {
+  return (
+    <View className="mb-3 items-start">
+      <View className="flex-row items-center rounded-[22px] rounded-bl-md bg-white px-4 py-3">
+        <TypingDot delayClass="opacity-40" />
+        <TypingDot delayClass="opacity-70" />
+        <TypingDot delayClass="opacity-100" />
+        <Text className="ml-2 font-jakarta-semibold text-[11px] text-[#777873]">
+          typing
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function TypingDot({ delayClass }: { delayClass: string }) {
+  return (
+    <View className={`mr-1 h-1.5 w-1.5 rounded-full bg-[#777873] ${delayClass}`} />
+  );
+}
+
+function ImagePreviewModal({
+  uri,
+  onClose,
+}: {
+  uri: string;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      visible={Boolean(uri)}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View className="flex-1 bg-black/90">
+        <Pressable className="absolute inset-0" onPress={onClose} />
+        <SafeAreaView className="flex-1">
+          <View className="flex-row justify-end px-5 pt-2">
+            <Pressable
+              className="h-10 w-10 items-center justify-center rounded-full bg-white/15"
+              accessibilityRole="button"
+              accessibilityLabel="Close image preview"
+              onPress={onClose}
+            >
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </Pressable>
+          </View>
+          <View className="flex-1 items-center justify-center px-4 pb-12">
+            {uri ? (
+              <Image
+                source={{ uri }}
+                className="h-full w-full"
+                resizeMode="contain"
+              />
+            ) : null}
+          </View>
+        </SafeAreaView>
+      </View>
+    </Modal>
   );
 }
 

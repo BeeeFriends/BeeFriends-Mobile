@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { NotificationIcon } from "./icons";
 import { useUnreadNotificationCount } from "../lib/notifications/unreadNotifications";
 
@@ -9,21 +9,30 @@ type NotificationButtonProps = {
 
 export function NotificationButton({ size = 17 }: NotificationButtonProps) {
   const unreadCount = useUnreadNotificationCount();
+  const hasUnread = unreadCount > 0;
 
   return (
     <Pressable
-      className="h-8 w-8 items-center justify-center"
+      className="relative h-9 w-9 items-center justify-center"
       accessibilityRole="button"
       accessibilityLabel="Notifications"
       onPress={() => router.push("/notifications" as never)}
     >
       <NotificationIcon size={size} />
-      {unreadCount > 0 ? (
-        <View className="absolute right-0 top-0 min-w-[16px] items-center justify-center rounded-full bg-[#FF3B30] px-[4px] py-[1px]">
-          <Text className="font-jakarta-bold text-[9px] leading-3 text-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </Text>
-        </View>
+      {hasUnread ? (
+        <View
+          style={{
+            position: "absolute",
+            right: 5,
+            top: 5,
+            width: 9,
+            height: 9,
+            borderRadius: 999,
+            backgroundColor: "#FF3B30",
+            borderWidth: 2,
+            borderColor: "#FFFFFF",
+          }}
+        />
       ) : null}
     </Pressable>
   );

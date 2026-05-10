@@ -1,9 +1,11 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
+import { useFocusEffect } from "expo-router";
+import type { NotificationItemDto } from "@beefriends/shared-kernel/dto/notification";
 import { getNotifications } from "../api/notifications";
 import { getValidAuthSession } from "../auth/session";
 
-const REFRESH_INTERVAL_MS = 7000;
+const REFRESH_INTERVAL_MS = 4000;
 
 let unreadCount = 0;
 let refreshPromise: Promise<void> | null = null;
@@ -30,6 +32,21 @@ export function setUnreadNotificationCount(nextCount: number) {
   emitChange();
 }
 
+export function isNotificationUnread(notification: NotificationItemDto) {
+  const value = notification.isRead as unknown;
+
+  if (value === false || value === 0 || value === "false") return true;
+  if (value === true || value === 1 || value === "true") return false;
+
+  return !Boolean(value);
+}
+
+export function countUnreadNotifications(
+  notifications: NotificationItemDto[],
+) {
+  return notifications.filter(isNotificationUnread).length;
+}
+
 export async function refreshUnreadNotificationCount(userId?: number) {
   if (refreshPromise) return refreshPromise;
 
@@ -43,9 +60,7 @@ export async function refreshUnreadNotificationCount(userId?: number) {
     }
 
     const notifications = await getNotifications(resolvedUserId);
-    setUnreadNotificationCount(
-      notifications.filter((notification) => !notification.isRead).length,
-    );
+    setUnreadNotificationCount(countUnreadNotifications(notifications));
   })().finally(() => {
     refreshPromise = null;
   });
@@ -56,18 +71,28 @@ export async function refreshUnreadNotificationCount(userId?: number) {
 export function useUnreadNotificationCount() {
   const count = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
+  const refresh = useCallback(() => {
+    void refreshUnreadNotificationCount().catch(() => undefined);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
+
   useEffect(() => {
     let isDisposed = false;
 
-    const refresh = () => {
+    const refreshIfActive = () => {
       if (isDisposed) return;
-      void refreshUnreadNotificationCount().catch(() => undefined);
+      refresh();
     };
 
-    refresh();
-    const intervalId = setInterval(refresh, REFRESH_INTERVAL_MS);
+    refreshIfActive();
+    const intervalId = setInterval(refreshIfActive, REFRESH_INTERVAL_MS);
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") refresh();
+      if (state === "active") refreshIfActive();
     });
 
     return () => {
@@ -75,7 +100,7 @@ export function useUnreadNotificationCount() {
       clearInterval(intervalId);
       subscription.remove();
     };
-  }, []);
+  }, [refresh]);
 
   return count;
 }
