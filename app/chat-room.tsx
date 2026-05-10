@@ -38,6 +38,8 @@ import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
 import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
 
+const ANDROID_KEYBOARD_CLEARANCE = 56;
+
 const emojiCategories = [
   {
     id: "recent",
@@ -520,11 +522,14 @@ export default function ChatRoomScreen() {
           }
 
           composerRef.current?.measureInWindow((_, composerY, __, height) => {
-            const keyboardTop = event.endCoordinates.screenY;
+            const keyboardTop = Math.max(
+              0,
+              event.endCoordinates.screenY - ANDROID_KEYBOARD_CLEARANCE,
+            );
             const composerBottom = composerY + height;
             const overlap = Math.max(0, composerBottom - keyboardTop);
             const nextInset = keyboardHeight
-              ? Math.min(overlap, keyboardHeight)
+              ? Math.min(overlap, keyboardHeight + ANDROID_KEYBOARD_CLEARANCE)
               : overlap;
 
             setKeyboardInset(nextInset);
