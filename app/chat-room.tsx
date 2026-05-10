@@ -18,7 +18,10 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import type {
   ConversationWithMessagesDto,
   MessageDto,
@@ -38,7 +41,7 @@ import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
 import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
 
-const ANDROID_KEYBOARD_CLEARANCE = 56;
+const ANDROID_KEYBOARD_CLEARANCE = 50;
 
 const emojiCategories = [
   {
@@ -221,9 +224,9 @@ export default function ChatRoomScreen() {
   const [isEmojiTrayOpen, setIsEmojiTrayOpen] = useState(false);
   const [activeEmojiCategoryId, setActiveEmojiCategoryId] =
     useState<(typeof emojiCategories)[number]["id"]>("recent");
-  const [isParticipantOnline, setIsParticipantOnline] = useState<boolean | null>(
-    null,
-  );
+  const [isParticipantOnline, setIsParticipantOnline] = useState<
+    boolean | null
+  >(null);
   const [isParticipantTyping, setIsParticipantTyping] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [keyboardInset, setKeyboardInset] = useState(0);
@@ -394,7 +397,12 @@ export default function ChatRoomScreen() {
       socket.off(CHAT_EVENTS.TYPING_START, handleTypingStart);
       socket.off(CHAT_EVENTS.TYPING_STOP, handleTypingStop);
     };
-  }, [conversationId, currentUserId, participantId, refreshConversationMessages]);
+  }, [
+    conversationId,
+    currentUserId,
+    participantId,
+    refreshConversationMessages,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -652,13 +660,16 @@ export default function ChatRoomScreen() {
     emitTypingStop();
 
     try {
-      const nextMessage = await sendMessage({
-        conversationId,
-        content: content || "Photo",
-        attachmentUrls: selectedImageUri
-          ? [(await uploadChatAttachment(accessToken, selectedImageUri)).url]
-          : undefined,
-      }, currentUserId);
+      const nextMessage = await sendMessage(
+        {
+          conversationId,
+          content: content || "Photo",
+          attachmentUrls: selectedImageUri
+            ? [(await uploadChatAttachment(accessToken, selectedImageUri)).url]
+            : undefined,
+        },
+        currentUserId,
+      );
 
       setMessages((currentMessages) =>
         mergeMessageList(currentMessages, nextMessage),
@@ -810,7 +821,9 @@ export default function ChatRoomScreen() {
                     ? 12
                     : 20,
             }}
-            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            keyboardDismissMode={
+              Platform.OS === "ios" ? "interactive" : "on-drag"
+            }
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
             showsVerticalScrollIndicator={false}
@@ -916,14 +929,15 @@ export default function ChatRoomScreen() {
                 placeholder="Message"
                 placeholderTextColor="#8D8D8D"
                 className="max-h-28 flex-1 px-1 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
-                textAlignVertical={messageText.includes("\n") ? "top" : "center"}
+                textAlignVertical={
+                  messageText.includes("\n") ? "top" : "center"
+                }
                 onFocus={() => {
                   setIsEmojiTrayOpen(false);
                   requestAnimationFrame(() => {
                     messageListRef.current?.scrollToEnd({ animated: true });
                   });
                 }}
-
                 onChangeText={handleMessageTextChange}
               />
             </View>
@@ -976,9 +990,7 @@ function MessageBubble({
     <View className={`mb-3 ${isMine ? "items-end" : "items-start"}`}>
       <View
         className={`max-w-[80%] overflow-hidden rounded-[22px] ${
-          isMine
-            ? "rounded-br-md bg-[#171819]"
-            : "rounded-bl-md bg-white"
+          isMine ? "rounded-br-md bg-[#171819]" : "rounded-bl-md bg-white"
         }`}
       >
         {textContent ? (
@@ -1004,7 +1016,9 @@ function MessageBubble({
       </View>
       <MessageMeta
         isMine={isMine}
-        isRead={Boolean(participantId && message.readBy?.includes(participantId))}
+        isRead={Boolean(
+          participantId && message.readBy?.includes(participantId),
+        )}
         time={formatMessageTime(message.timestamp || message.createdAt)}
       />
     </View>
@@ -1064,7 +1078,9 @@ function TypingIndicatorBubble() {
 
 function TypingDot({ delayClass }: { delayClass: string }) {
   return (
-    <View className={`mr-1 h-1.5 w-1.5 rounded-full bg-[#777873] ${delayClass}`} />
+    <View
+      className={`mr-1 h-1.5 w-1.5 rounded-full bg-[#777873] ${delayClass}`}
+    />
   );
 }
 
@@ -1150,7 +1166,9 @@ function EmojiPanel({
 }: {
   activeCategoryId: (typeof emojiCategories)[number]["id"];
   activeEmojis: readonly string[];
-  onSelectCategory: (categoryId: (typeof emojiCategories)[number]["id"]) => void;
+  onSelectCategory: (
+    categoryId: (typeof emojiCategories)[number]["id"],
+  ) => void;
   onSelectEmoji: (emoji: string) => void;
 }) {
   return (
@@ -1247,7 +1265,10 @@ function mergeMessageList(
               ...message,
               ...nextMessage,
               readBy: Array.from(
-                new Set([...(message.readBy ?? []), ...(nextMessage.readBy ?? [])]),
+                new Set([
+                  ...(message.readBy ?? []),
+                  ...(nextMessage.readBy ?? []),
+                ]),
               ),
             }
           : message,
