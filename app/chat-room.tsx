@@ -419,6 +419,9 @@ export default function ChatRoomScreen() {
     const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
       Keyboard.scheduleLayoutAnimation?.(event);
       setIsKeyboardOpen(false);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 80);
     });
 
     return () => {
@@ -526,8 +529,8 @@ export default function ChatRoomScreen() {
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior="padding"
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : undefined}
       >
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
           <Pressable
