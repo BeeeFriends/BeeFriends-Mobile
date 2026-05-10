@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { AppState, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NotificationItemDto } from "@beefriends/shared-kernel/dto/notification";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
@@ -16,6 +16,7 @@ import { API_BASE_URL } from "../lib/api/client";
 import { getUserProfileById } from "../lib/api/users";
 import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
+import { setUnreadNotificationCount } from "../lib/notifications/unreadNotifications";
 
 type EnrichedNotification = NotificationItemDto & {
   senderProfile?: UserProfileDto | null;
@@ -26,10 +27,10 @@ export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<EnrichedNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadNotifications = useCallback(
+    async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
+      if (showLoading) setIsLoading(true);
 
-    async function loadNotifications() {
       const session = await getValidAuthSession();
       if (!session) {
         router.replace("/");
@@ -63,42 +64,66 @@ export default function NotificationsScreen() {
             .map((profile) => [profile.id, profile] as const),
         );
 
-        if (!isMounted) return;
+        const enrichedNotifications = nextNotifications.map((notification) => {
+          const senderId = Number(notification.data?.senderId ?? NaN);
 
-        setNotifications(
-          nextNotifications.map((notification) => {
-            const senderId = Number(notification.data?.senderId ?? NaN);
+          return {
+            ...notification,
+            senderProfile:
+              notification.type === "CHAT" && Number.isInteger(senderId)
+                ? senderProfileById.get(senderId) ?? null
+                : null,
+          };
+        });
 
-            return {
-              ...notification,
-              senderProfile:
-                notification.type === "CHAT" && Number.isInteger(senderId)
-                  ? senderProfileById.get(senderId) ?? null
-                  : null,
-            };
-          }),
+        setNotifications(enrichedNotifications);
+        setUnreadNotificationCount(
+          enrichedNotifications.filter((notification) => !notification.isRead)
+            .length,
         );
       } catch {
-        if (isMounted) setNotifications([]);
+        if (showLoading) {
+          setNotifications([]);
+          setUnreadNotificationCount(0);
+        }
       } finally {
-        if (isMounted) setIsLoading(false);
+        setIsLoading(false);
       }
-    }
+    },
+    [],
+  );
 
-    loadNotifications();
+  useEffect(() => {
+    void loadNotifications({ showLoading: true });
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadNotifications().catch(() => undefined);
+    };
+
+    const intervalId = setInterval(refresh, 5000);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refresh();
+    });
 
     return () => {
-      isMounted = false;
+      clearInterval(intervalId);
+      subscription.remove();
     };
-  }, []);
+  }, [loadNotifications]);
 
   const openNotification = async (notification: EnrichedNotification) => {
     if (userId && !notification.isRead) {
-      setNotifications((current) =>
-        current.map((item) =>
+      setNotifications((current) => {
+        const nextNotifications = current.map((item) =>
           item.id === notification.id ? { ...item, isRead: true } : item,
-        ),
-      );
+        );
+        setUnreadNotificationCount(
+          nextNotifications.filter((item) => !item.isRead).length,
+        );
+        return nextNotifications;
+      });
       await markNotificationRead(notification.id, userId).catch(() => undefined);
     }
 
@@ -132,6 +157,7 @@ export default function NotificationsScreen() {
     setNotifications((current) =>
       current.map((notification) => ({ ...notification, isRead: true })),
     );
+    setUnreadNotificationCount(0);
     await markAllNotificationsRead(userId).catch(() => undefined);
   };
 

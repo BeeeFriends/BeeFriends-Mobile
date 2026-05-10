@@ -1,7 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AppState,
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import type {
   ConversationDto,
   MatchDto,
@@ -9,11 +17,11 @@ import type {
 } from "@beefriends/shared-kernel/dto/chat";
 import {
   ChatIcon,
-  NotificationIcon,
   PersonIcon,
   SearchIcon,
 } from "../components/icons";
 import { MainTabScreen } from "../components/MainTabScreen";
+import { NotificationButton } from "../components/NotificationButton";
 import { SkeletonBlock } from "../components/SkeletonBlock";
 import { API_BASE_URL } from "../lib/api/client";
 import { getUserConversations } from "../lib/api/conversations";
@@ -46,12 +54,11 @@ export default function ChatScreen() {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadConversations = useCallback(
+    async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
+      if (showLoading) setIsLoading(true);
 
-    async function loadConversations() {
       const session = await getValidAuthSession();
-
       if (!session) {
         router.replace("/");
         return;
@@ -75,8 +82,6 @@ export default function ChatScreen() {
           ? await getBatchPresence(uniqueParticipantIds).catch(() => [])
           : [];
 
-        if (!isMounted) return;
-
         setConversations(nextConversations);
         setMatches(nextMatches);
         setPresenceByUserId(
@@ -86,24 +91,47 @@ export default function ChatScreen() {
           }, {}),
         );
       } finally {
-        if (isMounted) setIsLoading(false);
+        setIsLoading(false);
       }
-    }
+    },
+    [],
+  );
 
-    loadConversations();
+  useEffect(() => {
+    void loadConversations({ showLoading: true });
+  }, [loadConversations]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void loadConversations().catch(() => undefined);
+      }
+    });
 
     return () => {
-      isMounted = false;
+      subscription.remove();
     };
-  }, []);
+  }, [loadConversations]);
 
   useEffect(() => {
     if (!currentUserId) return;
 
     const socket = getChatSocket(currentUserId);
+    const refreshConversations = () => {
+      void loadConversations().catch(() => undefined);
+    };
     const handleMessageReceived = (message: MessageDto) => {
-      setConversations((currentConversations) =>
-        sortConversations(
+      setConversations((currentConversations) => {
+        const hasConversation = currentConversations.some(
+          (conversation) => conversation.id === message.conversationId,
+        );
+
+        if (!hasConversation) {
+          refreshConversations();
+          return currentConversations;
+        }
+
+        return sortConversations(
           currentConversations.map((conversation) =>
             conversation.id === message.conversationId
               ? updateConversationWithMessage(
@@ -113,8 +141,8 @@ export default function ChatScreen() {
                 )
               : conversation,
           ),
-        ),
-      );
+        );
+      });
     };
     const handlePresenceChanged = (presence: {
       userId: number;
@@ -148,16 +176,19 @@ export default function ChatScreen() {
       );
     };
 
+    if (socket.connected) refreshConversations();
+    socket.on("connect", refreshConversations);
     socket.on(CHAT_EVENTS.MESSAGE_RECEIVED, handleMessageReceived);
     socket.on(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
     socket.on(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
 
     return () => {
+      socket.off("connect", refreshConversations);
       socket.off(CHAT_EVENTS.MESSAGE_RECEIVED, handleMessageReceived);
       socket.off(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
       socket.off(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
     };
-  }, [currentUserId]);
+  }, [currentUserId, loadConversations]);
 
   const chatItems = useMemo(
     () =>
@@ -178,14 +209,7 @@ export default function ChatScreen() {
           <Text className="font-jakarta-bold text-[24px] text-[#171819]">
             Chat
           </Text>
-          <Pressable
-            className="h-8 w-8 items-center justify-center"
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-            onPress={() => router.push("/notifications" as never)}
-          >
-            <NotificationIcon size={17} />
-          </Pressable>
+          <NotificationButton size={17} />
         </View>
 
         <View className="mt-5 h-12 flex-row items-center rounded-full bg-[#F5F5F5] px-4">

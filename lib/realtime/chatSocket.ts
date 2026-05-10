@@ -61,7 +61,7 @@ export function getChatSocket(userId: number) {
   socketUserId = userId;
   socket = io(API_BASE_URL, {
     path: "/socket.io",
-    transports: ["websocket"],
+    transports: ["websocket", "polling"],
     auth: { userId },
     query: { userId: String(userId) },
     reconnection: true,

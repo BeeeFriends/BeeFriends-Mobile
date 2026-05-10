@@ -2,9 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -179,7 +180,7 @@ export default function ChatRoomScreen() {
     photoUrl?: string;
     profile?: string;
   }>();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const messageListRef = useRef<FlatList<MessageDto>>(null);
   const readReceiptsSentRef = useRef<Set<string>>(new Set());
   const conversationId = Array.isArray(params.conversationId)
     ? params.conversationId[0]
@@ -259,6 +260,16 @@ export default function ChatRoomScreen() {
     };
   }, [conversationId]);
 
+  const refreshConversationMessages = useCallback(async () => {
+    if (!conversationId) return;
+
+    const nextConversation = await getConversationWithMessages(conversationId);
+    setConversation(nextConversation);
+    setMessages((currentMessages) =>
+      mergeMessageLists(currentMessages, nextConversation.messages ?? []),
+    );
+  }, [conversationId]);
+
   useEffect(() => {
     if (!conversationId || !currentUserId) return;
 
@@ -268,6 +279,7 @@ export default function ChatRoomScreen() {
         conversationId,
         userId: currentUserId,
       });
+      void refreshConversationMessages().catch(() => undefined);
     };
     const handleMessageReceived = (message: MessageDto) => {
       if (message.conversationId !== conversationId) return;
@@ -324,7 +336,7 @@ export default function ChatRoomScreen() {
       socket.off(CHAT_EVENTS.PRESENCE_CHANGED, handlePresenceChanged);
       socket.off(CHAT_EVENTS.MESSAGE_READ, handleMessageRead);
     };
-  }, [conversationId, currentUserId, participantId]);
+  }, [conversationId, currentUserId, participantId, refreshConversationMessages]);
 
   useEffect(() => {
     let isMounted = true;
@@ -356,9 +368,21 @@ export default function ChatRoomScreen() {
     if (messages.length === 0) return;
 
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+      messageListRef.current?.scrollToEnd({ animated: true });
     });
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!conversationId || !currentUserId || isLoading) return;
+
+    const intervalId = setInterval(() => {
+      void refreshConversationMessages().catch(() => undefined);
+    }, 5000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [conversationId, currentUserId, isLoading, refreshConversationMessages]);
 
   useEffect(() => {
     if (!conversationId || !currentUserId || messages.length === 0) return;
@@ -413,14 +437,14 @@ export default function ChatRoomScreen() {
       setIsKeyboardOpen(true);
       setIsEmojiTrayOpen(false);
       requestAnimationFrame(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        messageListRef.current?.scrollToEnd({ animated: true });
       });
     });
     const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
       Keyboard.scheduleLayoutAnimation?.(event);
       setIsKeyboardOpen(false);
       setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: false });
+        messageListRef.current?.scrollToEnd({ animated: false });
       }, 80);
     });
 
@@ -525,13 +549,12 @@ export default function ChatRoomScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
-
-
       <StatusBar style="dark" />
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior="padding"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
       >
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
           <Pressable
@@ -597,32 +620,40 @@ export default function ChatRoomScreen() {
         ) : messages.length === 0 ? (
           <ChatRoomEmptyState />
         ) : (
-          <ScrollView
-            ref={scrollViewRef}
+          <FlatList
+            ref={messageListRef}
+            data={messages}
+            keyExtractor={(message) => message.id}
             className="flex-1 bg-[#FAFAFA] px-4"
-            contentContainerClassName={`pt-5 ${isKeyboardOpen ? "pb-3" : "pb-5"}`}
+            contentContainerStyle={{
+              paddingTop: 20,
+              paddingBottom: isKeyboardOpen ? 12 : 20,
+            }}
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() =>
-              scrollViewRef.current?.scrollToEnd({ animated: true })
+              messageListRef.current?.scrollToEnd({ animated: true })
             }
-          >
-            <View className="mb-5 self-center rounded-full bg-white px-3 py-1 shadow-sm">
-              <Text className="font-jakarta-semibold text-[11px] text-[#777873]">
-                Today
-              </Text>
-            </View>
-            {messages.map((message) => (
+            onLayout={() =>
+              messageListRef.current?.scrollToEnd({ animated: false })
+            }
+            ListHeaderComponent={
+              <View className="mb-5 self-center rounded-full bg-white px-3 py-1 shadow-sm">
+                <Text className="font-jakarta-semibold text-[11px] text-[#777873]">
+                  Today
+                </Text>
+              </View>
+            }
+            renderItem={({ item: message }) => (
               <MessageBubble
-                key={message.id}
                 message={message}
                 isMine={message.senderId === currentUserId}
                 participantId={participantId}
               />
-            ))}
-          </ScrollView>
+            )}
+          />
         )}
 
         <View
@@ -698,7 +729,7 @@ export default function ChatRoomScreen() {
                 onFocus={() => {
                   setIsEmojiTrayOpen(false);
                   requestAnimationFrame(() => {
-                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                    messageListRef.current?.scrollToEnd({ animated: true });
                   });
                 }}
 
@@ -953,6 +984,17 @@ function mergeMessageList(
   return mergedMessages.sort(
     (firstMessage, secondMessage) =>
       getMessageTime(firstMessage) - getMessageTime(secondMessage),
+  );
+}
+
+function mergeMessageLists(
+  currentMessages: MessageDto[],
+  nextMessages: MessageDto[],
+) {
+  return nextMessages.reduce(
+    (mergedMessages, nextMessage) =>
+      mergeMessageList(mergedMessages, nextMessage),
+    currentMessages,
   );
 }
 

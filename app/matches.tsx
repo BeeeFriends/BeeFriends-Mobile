@@ -13,11 +13,11 @@ import type { MatchDto, MatchProfileDto } from "@beefriends/shared-kernel/dto/ch
 import {
   CommentIcon,
   HandIcon,
-  NotificationIcon,
   PersonIcon,
   SubstrackIcon,
 } from "../components/icons";
 import { MainTabScreen } from "../components/MainTabScreen";
+import { NotificationButton } from "../components/NotificationButton";
 import { SkeletonBlock } from "../components/SkeletonBlock";
 import { ToastBanner, useToast } from "../components/ToastBanner";
 import { API_BASE_URL } from "../lib/api/client";
@@ -156,14 +156,7 @@ export default function MatchesScreen() {
           <Text className="font-jakarta-bold text-[22px] leading-7 text-[#171819]">
             Matches
           </Text>
-          <Pressable
-            className="h-8 w-8 items-center justify-center"
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-            onPress={() => router.push("/notifications" as never)}
-          >
-            <NotificationIcon size={17} />
-          </Pressable>
+          <NotificationButton size={17} />
         </View>
 
         <View className="mt-5 flex-row items-center">
