@@ -525,12 +525,13 @@ export default function ChatRoomScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
+
+
       <StatusBar style="dark" />
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : undefined}
+        behavior="padding"
       >
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
           <Pressable
@@ -700,7 +701,7 @@ export default function ChatRoomScreen() {
                     scrollViewRef.current?.scrollToEnd({ animated: true });
                   });
                 }}
-                onBlur={() => setIsKeyboardOpen(false)}
+
                 onChangeText={setMessageText}
               />
             </View>
