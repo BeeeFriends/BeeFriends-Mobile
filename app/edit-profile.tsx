@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -17,6 +16,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type {
   UpdateUserDto,
@@ -99,9 +99,12 @@ export default function EditProfileScreen() {
           age: session.user.age ? String(session.user.age) : "",
           profilePhotoUrl: getProfilePhotoUri(session.user),
           photoUrls: galleryPhotos,
-          campusId: session.user.campus?.id ? String(session.user.campus.id) : "",
+          campusId: session.user.campus?.id
+            ? String(session.user.campus.id)
+            : "",
           majorId: session.user.major?.id ? String(session.user.major.id) : "",
-          hobbyIds: session.user.hobbies?.map((hobby) => String(hobby.id)) ?? [],
+          hobbyIds:
+            session.user.hobbies?.map((hobby) => String(hobby.id)) ?? [],
         });
       } catch (error) {
         showToast({
@@ -184,7 +187,9 @@ export default function EditProfileScreen() {
     if (!draft) return;
 
     updateDraft({
-      photoUrls: draft.photoUrls.filter((_, photoIndex) => photoIndex !== index),
+      photoUrls: draft.photoUrls.filter(
+        (_, photoIndex) => photoIndex !== index,
+      ),
     });
   };
 
@@ -205,7 +210,9 @@ export default function EditProfileScreen() {
 
     updateDraft({
       hobbyIds: draft.hobbyIds.includes(hobbyId)
-        ? draft.hobbyIds.filter((selectedHobbyId) => selectedHobbyId !== hobbyId)
+        ? draft.hobbyIds.filter(
+            (selectedHobbyId) => selectedHobbyId !== hobbyId,
+          )
         : [...draft.hobbyIds, hobbyId],
     });
   };
@@ -291,7 +298,10 @@ export default function EditProfileScreen() {
         updatePayload,
       );
 
-      await saveAuthSession({ access_token: accessToken, user: updatedProfile });
+      await saveAuthSession({
+        access_token: accessToken,
+        user: updatedProfile,
+      });
       router.replace("/profile" as never);
     } catch (error) {
       showToast({
@@ -313,7 +323,7 @@ export default function EditProfileScreen() {
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="translate-with-padding"
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -356,7 +366,6 @@ export default function EditProfileScreen() {
               contentContainerClassName={isKeyboardOpen ? "pb-80" : "pb-8"}
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
               showsVerticalScrollIndicator={false}
             >
               <View className="rounded-[22px] bg-[#F7F7F7] p-4">
@@ -423,7 +432,9 @@ export default function EditProfileScreen() {
                       <EditablePhotoTile
                         key={index}
                         uri={photoUri}
-                        onPick={() => pickGalleryPhoto(photoUri ? index : undefined)}
+                        onPick={() =>
+                          pickGalleryPhoto(photoUri ? index : undefined)
+                        }
                         onRemove={() => removeGalleryPhoto(index)}
                       />
                     );
@@ -440,7 +451,9 @@ export default function EditProfileScreen() {
                   value={draft.campusId}
                   options={campusOptions}
                   placeholder={
-                    isMasterDataLoading ? "Loading campuses..." : "Choose campus"
+                    isMasterDataLoading
+                      ? "Loading campuses..."
+                      : "Choose campus"
                   }
                   disabled={isMasterDataLoading || campusOptions.length === 0}
                   onChange={(campusId) => updateDraft({ campusId })}
@@ -691,7 +704,11 @@ function EditablePhotoTile({
     >
       {uri ? (
         <>
-          <Image source={{ uri }} className="h-full w-full" resizeMode="cover" />
+          <Image
+            source={{ uri }}
+            className="h-full w-full"
+            resizeMode="cover"
+          />
           <Pressable
             className="absolute right-2 top-2 h-7 w-7 items-center justify-center rounded-full bg-black/70"
             accessibilityRole="button"

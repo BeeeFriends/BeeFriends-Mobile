@@ -16,11 +16,19 @@ import {
 import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
 
+type VisibleNotificationSettingsDto = Pick<
+  NotificationSettingsDto,
+  "userId" | "matchEnabled" | "pushEnabled" | "inAppEnabled"
+>;
+type NotificationSettingKey = keyof Omit<
+  VisibleNotificationSettingsDto,
+  "userId"
+>;
+
 const TEXT_COLOR = "#171819";
-const fallbackSettings = (userId: number): NotificationSettingsDto => ({
+const fallbackSettings = (userId: number): VisibleNotificationSettingsDto => ({
   userId,
   matchEnabled: true,
-  chatEnabled: true,
   pushEnabled: true,
   inAppEnabled: true,
 });
@@ -28,12 +36,11 @@ const SERVER_SYNC_TIMEOUT_MS = 8000;
 
 export default function NotificationSettingsScreen() {
   const [userId, setUserId] = useState<number | null>(null);
-  const [settings, setSettings] = useState<NotificationSettingsDto | null>(
-    null,
-  );
+  const [settings, setSettings] =
+    useState<VisibleNotificationSettingsDto | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [savingKeys, setSavingKeys] = useState<
-    Partial<Record<keyof Omit<NotificationSettingsDto, "userId">, boolean>>
+    Partial<Record<NotificationSettingKey, boolean>>
   >({});
   const { toast, showToast, hideToast } = useToast();
 
@@ -89,10 +96,7 @@ export default function NotificationSettingsScreen() {
     };
   }, []);
 
-  const saveSetting = async (
-    key: keyof Omit<NotificationSettingsDto, "userId">,
-    value: boolean,
-  ) => {
+  const saveSetting = async (key: NotificationSettingKey, value: boolean) => {
     if (!userId || !settings) return;
 
     const currentSettings = settings;
@@ -207,11 +211,10 @@ function disablePushToken(userId: number) {
 function normalizeNotificationSettings(
   value: Partial<NotificationSettingsDto> | UpdateNotificationSettingsPayload,
   userId: number,
-): NotificationSettingsDto {
+): VisibleNotificationSettingsDto {
   return {
     userId,
     matchEnabled: toBoolean(value.matchEnabled, true),
-    chatEnabled: toBoolean(value.chatEnabled, true),
     pushEnabled: toBoolean(value.pushEnabled, true),
     inAppEnabled: toBoolean(value.inAppEnabled, true),
   };

@@ -10,16 +10,13 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import type {
   ConversationDto,
   MatchDto,
   MessageDto,
 } from "@beefriends/shared-kernel/dto/chat";
-import {
-  ChatIcon,
-  PersonIcon,
-  SearchIcon,
-} from "../components/icons";
+import { ChatIcon, PersonIcon, SearchIcon } from "../components/icons";
 import { MainTabScreen } from "../components/MainTabScreen";
 import { NotificationButton } from "../components/NotificationButton";
 import { SkeletonBlock } from "../components/SkeletonBlock";
@@ -85,10 +82,13 @@ export default function ChatScreen() {
         setConversations(nextConversations);
         setMatches(nextMatches);
         setPresenceByUserId(
-          nextPresence.reduce<Record<number, boolean>>((presenceMap, presence) => {
-            presenceMap[presence.userId] = presence.isOnline;
-            return presenceMap;
-          }, {}),
+          nextPresence.reduce<Record<number, boolean>>(
+            (presenceMap, presence) => {
+              presenceMap[presence.userId] = presence.isOnline;
+              return presenceMap;
+            },
+            {},
+          ),
         );
       } finally {
         setIsLoading(false);
@@ -205,6 +205,10 @@ export default function ChatScreen() {
 
   return (
     <MainTabScreen active="chat" borderedNav contentClassName="px-5 pt-8">
+      <KeyboardAvoidingView
+        behavior="translate-with-padding"
+        className="flex-1"
+      >
         <View className="flex-row items-center justify-between">
           <Text className="font-jakarta-bold text-[24px] text-[#171819]">
             Chat
@@ -236,6 +240,7 @@ export default function ChatScreen() {
             chatItems.map((item) => <ChatRow key={item.id} item={item} />)
           )}
         </ScrollView>
+      </KeyboardAvoidingView>
     </MainTabScreen>
   );
 }
@@ -304,8 +309,7 @@ function applyConversationReadReceipt(
 
   return {
     ...conversation,
-    unreadCount:
-      userId === currentUserId ? 0 : getUnreadCount(conversation),
+    unreadCount: userId === currentUserId ? 0 : getUnreadCount(conversation),
     lastMessage: {
       ...conversation.lastMessage,
       readBy: Array.from(
@@ -327,7 +331,10 @@ function mergeMessageReadBy(
     ...currentMessage,
     ...nextMessage,
     readBy: Array.from(
-      new Set([...(currentMessage.readBy ?? []), ...(nextMessage.readBy ?? [])]),
+      new Set([
+        ...(currentMessage.readBy ?? []),
+        ...(nextMessage.readBy ?? []),
+      ]),
     ),
   };
 }
@@ -450,7 +457,8 @@ function toChatItem(
   presenceByUserId: Record<number, boolean>,
   matches: MatchDto[],
 ): ChatItem | null {
-  const participantIds = conversation.participantIds ?? conversation.participants;
+  const participantIds =
+    conversation.participantIds ?? conversation.participants;
   const otherUserId = participantIds.find((id) => id !== currentUserId) ?? null;
   const match = matches.find(
     (match) =>
@@ -481,7 +489,7 @@ function toChatItem(
     time: formatChatTime(conversation.updatedAt),
     photoUrl,
     otherUserId,
-    isOnline: otherUserId ? presenceByUserId[otherUserId] ?? null : null,
+    isOnline: otherUserId ? (presenceByUserId[otherUserId] ?? null) : null,
     isLastMessageMine: conversation.lastMessageSenderId === currentUserId,
     isLastMessageRead: Boolean(
       otherUserId && conversation.lastMessage?.readBy?.includes(otherUserId),

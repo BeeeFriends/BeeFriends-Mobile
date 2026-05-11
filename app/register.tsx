@@ -5,15 +5,14 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   Image,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { registerAccount } from "../lib/api/auth";
 import { getCampusOptions } from "../lib/api/campus";
@@ -205,7 +204,11 @@ export default function RegisterScreen() {
     const numericAge = Number(age);
     if (!age.trim()) {
       nextErrors.age = "Please enter your age.";
-    } else if (!Number.isInteger(numericAge) || numericAge < 17 || numericAge > 60) {
+    } else if (
+      !Number.isInteger(numericAge) ||
+      numericAge < 17 ||
+      numericAge > 60
+    ) {
       nextErrors.age = "Age must be between 17 and 60.";
     }
 
@@ -390,7 +393,7 @@ export default function RegisterScreen() {
         />
       ) : (
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior="translate-with-padding"
           className="mx-auto w-full max-w-[430px] flex-1 bg-white"
         >
           <View className="flex-1 px-5 pb-5">

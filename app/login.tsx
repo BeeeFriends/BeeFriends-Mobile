@@ -2,14 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { loginAccount } from "../lib/api/auth";
 import { saveAuthSession } from "../lib/auth/session";
@@ -73,7 +67,7 @@ export default function LoginScreen() {
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="translate-with-padding"
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
       >
         <View className="flex-1 px-5 pb-8 pt-7">
