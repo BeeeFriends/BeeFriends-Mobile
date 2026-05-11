@@ -10,6 +10,7 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AppState, View } from "react-native";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import "react-native-reanimated";
 import { API_BASE_URL } from "../lib/api/client";
 import { getAuthSession } from "../lib/auth/session";
@@ -50,39 +51,44 @@ export default function RootLayout() {
 function RootLayoutNav() {
   return (
     <ThemeProvider value={DefaultTheme}>
-      <AppForegroundPushSync />
-      <AppNotificationRouter />
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="register" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="home"
-          options={{ headerShown: false, animation: "fade" }}
-        />
-        <Stack.Screen
-          name="matches"
-          options={{ headerShown: false, animation: "fade" }}
-        />
-        <Stack.Screen
-          name="chat"
-          options={{ headerShown: false, animation: "fade" }}
-        />
-        <Stack.Screen name="chat-room" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ headerShown: false }} />
-        <Stack.Screen name="account" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="notification-settings"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen name="notifications" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="profile"
-          options={{ headerShown: false, animation: "fade" }}
-        />
-        <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
-        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-      </Stack>
+      <KeyboardProvider>
+        <AppForegroundPushSync />
+        <AppNotificationRouter />
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="register" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="home"
+            options={{ headerShown: false, animation: "fade" }}
+          />
+          <Stack.Screen
+            name="matches"
+            options={{ headerShown: false, animation: "fade" }}
+          />
+          <Stack.Screen
+            name="chat"
+            options={{ headerShown: false, animation: "fade" }}
+          />
+          <Stack.Screen name="chat-room" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen name="account" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="notification-settings"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="profile"
+            options={{ headerShown: false, animation: "fade" }}
+          />
+          <Stack.Screen
+            name="profile-detail"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+        </Stack>
+      </KeyboardProvider>
     </ThemeProvider>
   );
 }

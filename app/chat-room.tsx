@@ -5,11 +5,9 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
   FlatList,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -18,6 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -40,8 +39,6 @@ import { uploadChatAttachment } from "../lib/api/users";
 import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
 import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
-
-const ANDROID_KEYBOARD_CLEARANCE = 50;
 
 const emojiCategories = [
   {
@@ -188,8 +185,6 @@ export default function ChatRoomScreen() {
     profile?: string;
   }>();
   const messageListRef = useRef<FlatList<MessageDto>>(null);
-  const composerRef = useRef<View>(null);
-  const composerTranslateY = useRef(new Animated.Value(0)).current;
   const readReceiptsSentRef = useRef<Set<string>>(new Set());
   const isTypingRef = useRef(false);
   const typingStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -229,7 +224,6 @@ export default function ChatRoomScreen() {
   >(null);
   const [isParticipantTyping, setIsParticipantTyping] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [keyboardInset, setKeyboardInset] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const { toast, showToast, hideToast } = useToast();
@@ -505,51 +499,11 @@ export default function ChatRoomScreen() {
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const animateComposer = (offset: number, duration?: number) => {
-      Animated.timing(composerTranslateY, {
-        toValue: -offset,
-        duration: duration && duration > 0 ? duration : 220,
-        useNativeDriver: true,
-      }).start();
-    };
 
     const showSubscription = Keyboard.addListener(showEvent, (event) => {
       Keyboard.scheduleLayoutAnimation?.(event);
       setIsKeyboardOpen(true);
       setIsEmojiTrayOpen(false);
-
-      if (Platform.OS === "android") {
-        requestAnimationFrame(() => {
-          const keyboardHeight = Math.max(0, event.endCoordinates.height ?? 0);
-
-          if (!composerRef.current) {
-            setKeyboardInset(keyboardHeight);
-            animateComposer(keyboardHeight, event.duration);
-            messageListRef.current?.scrollToEnd({ animated: true });
-            return;
-          }
-
-          composerRef.current?.measureInWindow((_, composerY, __, height) => {
-            const keyboardTop = Math.max(
-              0,
-              event.endCoordinates.screenY - ANDROID_KEYBOARD_CLEARANCE,
-            );
-            const composerBottom = composerY + height;
-            const overlap = Math.max(0, composerBottom - keyboardTop);
-            const nextInset = keyboardHeight
-              ? Math.min(overlap, keyboardHeight + ANDROID_KEYBOARD_CLEARANCE)
-              : overlap;
-
-            setKeyboardInset(nextInset);
-            animateComposer(nextInset, event.duration);
-            messageListRef.current?.scrollToEnd({ animated: true });
-          });
-        });
-        return;
-      }
-
-      setKeyboardInset(0);
-      animateComposer(0, event.duration);
       requestAnimationFrame(() => {
         messageListRef.current?.scrollToEnd({ animated: true });
       });
@@ -557,8 +511,6 @@ export default function ChatRoomScreen() {
     const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
       Keyboard.scheduleLayoutAnimation?.(event);
       setIsKeyboardOpen(false);
-      setKeyboardInset(0);
-      animateComposer(0, event.duration);
       setTimeout(() => {
         messageListRef.current?.scrollToEnd({ animated: false });
       }, 80);
@@ -568,7 +520,7 @@ export default function ChatRoomScreen() {
       showSubscription.remove();
       hideSubscription.remove();
     };
-  }, [composerTranslateY]);
+  }, []);
 
   const title = useMemo(
     () => routeName || conversation?.name || "Chat",
@@ -738,7 +690,7 @@ export default function ChatRoomScreen() {
       <ToastBanner toast={toast} onDismiss={hideToast} />
       <KeyboardAvoidingView
         className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="translate-with-padding"
         keyboardVerticalOffset={0}
       >
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
@@ -814,18 +766,12 @@ export default function ChatRoomScreen() {
             className="flex-1 bg-[#FAFAFA] px-4"
             contentContainerStyle={{
               paddingTop: 20,
-              paddingBottom:
-                Platform.OS === "android" && isKeyboardOpen
-                  ? keyboardInset + 12
-                  : isKeyboardOpen
-                    ? 12
-                    : 20,
+              paddingBottom: isKeyboardOpen ? 12 : 20,
             }}
             keyboardDismissMode={
               Platform.OS === "ios" ? "interactive" : "on-drag"
             }
             keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() =>
               messageListRef.current?.scrollToEnd({ animated: true })
@@ -854,15 +800,9 @@ export default function ChatRoomScreen() {
           />
         )}
 
-        <Animated.View
-          ref={composerRef}
+        <View
           className="border-t border-[#F1F1F1] bg-white px-4 pt-3"
-          style={[
-            { paddingBottom: composerBottomPadding },
-            Platform.OS === "android"
-              ? { transform: [{ translateY: composerTranslateY }] }
-              : null,
-          ]}
+          style={{ paddingBottom: composerBottomPadding }}
         >
           {selectedImageUri ? (
             <View className="mb-3 flex-row items-center rounded-3xl bg-[#F7F7F7] p-2">
@@ -959,7 +899,7 @@ export default function ChatRoomScreen() {
               )}
             </Pressable>
           </View>
-        </Animated.View>
+        </View>
       </KeyboardAvoidingView>
       <ImagePreviewModal
         uri={previewImageUri}
