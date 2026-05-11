@@ -226,6 +226,7 @@ export default function ChatRoomScreen() {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const { toast, showToast, hideToast } = useToast();
 
   useEffect(() => {
@@ -538,6 +539,9 @@ export default function ChatRoomScreen() {
     : isParticipantOnline
       ? "Online"
       : "Offline";
+  const isComposerBusy = isSending || isUploadingAttachment;
+  const hasSendableContent = Boolean(messageText.trim() || selectedImageUri);
+  const isImageSendInProgress = Boolean(selectedImageUri && isSending);
 
   const emitTypingStop = useCallback(() => {
     if (typingStopTimeoutRef.current) {
@@ -603,7 +607,7 @@ export default function ChatRoomScreen() {
       !currentUserId ||
       (selectedImageUri && !accessToken) ||
       (!content && !selectedImageUri) ||
-      isSending
+      isComposerBusy
     ) {
       return;
     }
@@ -612,13 +616,23 @@ export default function ChatRoomScreen() {
     emitTypingStop();
 
     try {
+      let attachmentUrls: string[] | undefined;
+
+      if (selectedImageUri) {
+        setIsUploadingAttachment(true);
+        const uploadedAttachment = await uploadChatAttachment(
+          accessToken,
+          selectedImageUri,
+        );
+        attachmentUrls = [uploadedAttachment.url];
+        setIsUploadingAttachment(false);
+      }
+
       const nextMessage = await sendMessage(
         {
           conversationId,
           content: content || "Photo",
-          attachmentUrls: selectedImageUri
-            ? [(await uploadChatAttachment(accessToken, selectedImageUri)).url]
-            : undefined,
+          attachmentUrls,
         },
         currentUserId,
       );
@@ -635,11 +649,14 @@ export default function ChatRoomScreen() {
         message: getErrorMessage(error),
       });
     } finally {
+      setIsUploadingAttachment(false);
       setIsSending(false);
     }
   };
 
   const pickImage = async () => {
+    if (isComposerBusy) return;
+
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
@@ -663,6 +680,8 @@ export default function ChatRoomScreen() {
   };
 
   const addEmoji = (emoji: string) => {
+    if (isComposerBusy) return;
+
     setMessageText((currentText) => {
       const nextText = `${currentText}${emoji}`;
       if (nextText.trim()) emitTypingStart();
@@ -671,7 +690,8 @@ export default function ChatRoomScreen() {
   };
 
   const toggleEmojiTray = () => {
-    Keyboard.dismiss();
+    if (isComposerBusy) return;
+
     setIsEmojiTrayOpen((isOpen) => !isOpen);
   };
 
@@ -813,18 +833,32 @@ export default function ChatRoomScreen() {
                     className="h-16 w-16"
                     resizeMode="cover"
                   />
+                  {isImageSendInProgress ? (
+                    <View className="absolute inset-0 items-center justify-center bg-black/45">
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    </View>
+                  ) : null}
                 </View>
                 <View className="ml-3 flex-1">
                   <Text className="font-jakarta-bold text-[13px] text-[#171819]">
-                    Image ready
+                    {isUploadingAttachment
+                      ? "Uploading image"
+                      : isImageSendInProgress
+                        ? "Sending image"
+                        : "Image ready"}
                   </Text>
                   <Text className="mt-1 font-jakarta text-[11px] text-[#777873]">
-                    Add a message or send it now.
+                    {isImageSendInProgress
+                      ? "Please wait while we finish this message."
+                      : "Add a message or send it now."}
                   </Text>
                 </View>
                 <Pressable
-                  className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                  className={`h-9 w-9 items-center justify-center rounded-full bg-white ${
+                    isComposerBusy ? "opacity-40" : ""
+                  }`}
                   accessibilityRole="button"
+                  disabled={isComposerBusy}
                   onPress={() => setSelectedImageUri("")}
                 >
                   <Ionicons name="close" size={17} color="#171819" />
@@ -843,9 +877,12 @@ export default function ChatRoomScreen() {
 
             <View className="flex-row items-end">
               <Pressable
-                className="mr-2 h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F5]"
+                className={`mr-2 h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F5] ${
+                  isComposerBusy ? "opacity-45" : ""
+                }`}
                 accessibilityRole="button"
                 accessibilityLabel="Add image"
+                disabled={isComposerBusy}
                 onPress={pickImage}
               >
                 <Ionicons name="image-outline" size={21} color="#171819" />
@@ -854,9 +891,10 @@ export default function ChatRoomScreen() {
               <Pressable
                 className={`mr-2 h-11 w-11 items-center justify-center rounded-full ${
                   isEmojiTrayOpen ? "bg-[#FFE036]" : "bg-[#F5F5F5]"
-                }`}
+                } ${isComposerBusy ? "opacity-45" : ""}`}
                 accessibilityRole="button"
                 accessibilityLabel="Open emoji picker"
+                disabled={isComposerBusy}
                 onPress={toggleEmojiTray}
               >
                 <Ionicons name="happy-outline" size={20} color="#171819" />
@@ -870,9 +908,11 @@ export default function ChatRoomScreen() {
                   placeholder="Message"
                   placeholderTextColor="#8D8D8D"
                   className="max-h-28 flex-1 px-1 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
+                  editable={!isComposerBusy}
                   textAlignVertical={
                     messageText.includes("\n") ? "top" : "center"
                   }
+                  onPressIn={() => setIsEmojiTrayOpen(false)}
                   onFocus={() => {
                     setIsEmojiTrayOpen(false);
                     requestAnimationFrame(() => {
@@ -885,17 +925,15 @@ export default function ChatRoomScreen() {
 
               <Pressable
                 className={`ml-2 h-11 w-11 items-center justify-center rounded-full ${
-                  (messageText.trim() || selectedImageUri) && !isSending
+                  hasSendableContent && !isComposerBusy
                     ? "bg-[#171819]"
                     : "bg-[#D9D9D9]"
                 }`}
                 accessibilityRole="button"
-                disabled={
-                  (!messageText.trim() && !selectedImageUri) || isSending
-                }
+                disabled={!hasSendableContent || isComposerBusy}
                 onPress={handleSend}
               >
-                {isSending ? (
+                {isComposerBusy ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <Ionicons name="send" size={16} color="#FFFFFF" />
