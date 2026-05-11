@@ -6,17 +6,17 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Keyboard,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
-  TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import {
+  KeyboardAwareScrollView,
+  type KeyboardAwareScrollViewRef,
+} from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type {
   UpdateUserDto,
@@ -49,7 +49,7 @@ type EditProfileDraft = {
 };
 
 export default function EditProfileScreen() {
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<KeyboardAwareScrollViewRef>(null);
   const [profile, setProfile] = useState<UserProfileDto | null>(null);
   const [accessToken, setAccessToken] = useState("");
   const [draft, setDraft] = useState<EditProfileDraft | null>(null);
@@ -59,7 +59,6 @@ export default function EditProfileScreen() {
   const [isMasterDataLoading, setIsMasterDataLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const { toast, showToast, hideToast } = useToast();
 
   useEffect(() => {
@@ -126,27 +125,6 @@ export default function EditProfileScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSubscription = Keyboard.addListener(showEvent, (event) => {
-      Keyboard.scheduleLayoutAnimation?.(event);
-      setIsKeyboardOpen(true);
-    });
-    const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
-      Keyboard.scheduleLayoutAnimation?.(event);
-      setIsKeyboardOpen(false);
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
-
   const updateDraft = (nextDraft: Partial<EditProfileDraft>) => {
     setDraft((currentDraft) =>
       currentDraft ? { ...currentDraft, ...nextDraft } : currentDraft,
@@ -155,7 +133,7 @@ export default function EditProfileScreen() {
 
   const scrollFocusedInputIntoView = () => {
     setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+      scrollViewRef.current?.assureFocusedInputVisible();
     }, 120);
   };
 
@@ -318,215 +296,211 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-[#F6F6F6]">
       <StatusBar style="dark" />
       <ToastBanner toast={toast} onDismiss={hideToast} />
-      <KeyboardAvoidingView
-        className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior="translate-with-padding"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View className="flex-1">
-            <View className="h-16 flex-row items-center justify-between px-5">
-              <Pressable
-                className="h-10 w-10 items-center justify-center rounded-full bg-[#F5F5F5]"
-                accessibilityRole="button"
-                disabled={isSaving}
-                onPress={() => goBackOrReplace("/profile")}
-              >
-                <Ionicons name="chevron-back" size={22} color="#171819" />
-              </Pressable>
+      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
+        <View className="h-[88px] flex-row items-center border-b border-[#EFEFEF] bg-white px-6 pt-8">
+          <Pressable
+            className="mr-4 h-10 w-10 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel="Back to profile"
+            disabled={isSaving}
+            onPress={() => goBackOrReplace("/profile")}
+          >
+            <Ionicons name="arrow-back" size={26} color="#171819" />
+          </Pressable>
 
-              <Text className="font-jakarta-bold text-[18px] text-[#171819]">
-                Edit profile
+          <Text className="flex-1 font-jakarta-bold text-[20px] leading-7 text-[#171819]">
+            Edit profile
+          </Text>
+
+          <Pressable
+            className={`h-10 min-w-[74px] items-center justify-center rounded-full px-4 ${
+              isSaving ? "bg-[#D9D9D9]" : "bg-black"
+            }`}
+            accessibilityRole="button"
+            accessibilityLabel="Save profile"
+            disabled={isSaving}
+            onPress={saveProfile}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text className="font-jakarta-bold text-[13px] text-white">
+                Save
               </Text>
+            )}
+          </Pressable>
+        </View>
 
+        <KeyboardAwareScrollView
+          ref={scrollViewRef}
+          className="flex-1 px-5"
+          bottomOffset={32}
+          contentContainerStyle={{
+            paddingBottom: 32,
+            paddingTop: 20,
+          }}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View className="rounded-[22px] bg-[#F7F7F7] p-4">
+            <View className="flex-row items-center justify-between">
+              <View>
+                <Text className="font-jakarta-bold text-[15px] text-[#171819]">
+                  Main photo
+                </Text>
+                <Text className="mt-1 font-jakarta text-[12px] text-[#777873]">
+                  Best at 4:5 ratio
+                </Text>
+              </View>
               <Pressable
-                className={`h-10 min-w-[78px] items-center justify-center rounded-full px-4 ${
-                  isSaving ? "bg-[#D9D9D9]" : "bg-black"
-                }`}
+                className="h-9 flex-row items-center justify-center rounded-full bg-black px-4"
                 accessibilityRole="button"
-                disabled={isSaving}
-                onPress={saveProfile}
+                onPress={pickProfilePhoto}
               >
-                {isSaving ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text className="font-jakarta-bold text-[13px] text-white">
-                    Save
-                  </Text>
-                )}
+                <Ionicons name="camera" size={15} color="#FFFFFF" />
+                <Text className="ml-2 font-jakarta-bold text-[12px] text-white">
+                  Change
+                </Text>
               </Pressable>
             </View>
 
-            <ScrollView
-              ref={scrollViewRef}
-              className="flex-1 px-5"
-              contentContainerClassName={isKeyboardOpen ? "pb-80" : "pb-8"}
-              keyboardDismissMode="interactive"
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
+            <Pressable
+              className="mt-4 aspect-[4/5] w-full overflow-hidden rounded-[18px] bg-[#EDEDED]"
+              accessibilityRole="imagebutton"
+              onPress={pickProfilePhoto}
             >
-              <View className="rounded-[22px] bg-[#F7F7F7] p-4">
-                <View className="flex-row items-center justify-between">
-                  <View>
-                    <Text className="font-jakarta-bold text-[15px] text-[#171819]">
-                      Main photo
-                    </Text>
-                    <Text className="mt-1 font-jakarta text-[12px] text-[#777873]">
-                      Best at 4:5 ratio
-                    </Text>
-                  </View>
-                  <Pressable
-                    className="h-9 flex-row items-center justify-center rounded-full bg-black px-4"
-                    accessibilityRole="button"
-                    onPress={pickProfilePhoto}
-                  >
-                    <Ionicons name="camera" size={15} color="#FFFFFF" />
-                    <Text className="ml-2 font-jakarta-bold text-[12px] text-white">
-                      Change
-                    </Text>
-                  </Pressable>
+              {draft.profilePhotoUrl ? (
+                <Image
+                  source={{ uri: draft.profilePhotoUrl }}
+                  className="h-full w-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="h-full w-full items-center justify-center">
+                  <PersonIcon color="#777873" size={58} />
                 </View>
-
-                <Pressable
-                  className="mt-4 aspect-[4/5] w-full overflow-hidden rounded-[18px] bg-[#EDEDED]"
-                  accessibilityRole="imagebutton"
-                  onPress={pickProfilePhoto}
-                >
-                  {draft.profilePhotoUrl ? (
-                    <Image
-                      source={{ uri: draft.profilePhotoUrl }}
-                      className="h-full w-full"
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View className="h-full w-full items-center justify-center">
-                      <PersonIcon color="#777873" size={58} />
-                    </View>
-                  )}
-                </Pressable>
-              </View>
-
-              <View className="mt-5">
-                <View className="flex-row items-end justify-between">
-                  <View>
-                    <Text className="font-jakarta-bold text-[15px] text-[#171819]">
-                      Gallery photos
-                    </Text>
-                    <Text className="mt-1 font-jakarta text-[12px] text-[#777873]">
-                      Add up to 3 photos
-                    </Text>
-                  </View>
-                  <Text className="font-jakarta-bold text-[12px] text-[#777873]">
-                    {draft.photoUrls.length}/3
-                  </Text>
-                </View>
-
-                <View className="mt-3 flex-row gap-3">
-                  {Array.from({ length: 3 }).map((_, index) => {
-                    const photoUri = draft.photoUrls[index];
-
-                    return (
-                      <EditablePhotoTile
-                        key={index}
-                        uri={photoUri}
-                        onPick={() =>
-                          pickGalleryPhoto(photoUri ? index : undefined)
-                        }
-                        onRemove={() => removeGalleryPhoto(index)}
-                      />
-                    );
-                  })}
-                </View>
-              </View>
-
-              <View className="mt-6 gap-4">
-                <Text className="font-jakarta-bold text-[15px] text-[#171819]">
-                  Campus details
-                </Text>
-                <OptionSelectField
-                  label="Campus"
-                  value={draft.campusId}
-                  options={campusOptions}
-                  placeholder={
-                    isMasterDataLoading
-                      ? "Loading campuses..."
-                      : "Choose campus"
-                  }
-                  disabled={isMasterDataLoading || campusOptions.length === 0}
-                  onChange={(campusId) => updateDraft({ campusId })}
-                />
-                <OptionSelectField
-                  label="Major"
-                  value={draft.majorId}
-                  options={majorOptions}
-                  placeholder={
-                    isMasterDataLoading ? "Loading majors..." : "Choose major"
-                  }
-                  disabled={isMasterDataLoading || majorOptions.length === 0}
-                  onChange={(majorId) => updateDraft({ majorId })}
-                />
-              </View>
-
-              <View className="mt-6">
-                <View className="flex-row items-end justify-between">
-                  <View>
-                    <Text className="font-jakarta-bold text-[15px] text-[#171819]">
-                      Hobbies
-                    </Text>
-                    <Text className="mt-1 font-jakarta text-[12px] text-[#777873]">
-                      Choose up to {MAX_HOBBY_SELECTIONS} things people should
-                      notice
-                    </Text>
-                  </View>
-                  <Text className="font-jakarta-bold text-[12px] text-[#777873]">
-                    {draft.hobbyIds.length}/{MAX_HOBBY_SELECTIONS}
-                  </Text>
-                </View>
-                <HobbyPicker
-                  options={hobbyOptions}
-                  selectedValues={draft.hobbyIds}
-                  maxSelected={MAX_HOBBY_SELECTIONS}
-                  disabled={isMasterDataLoading}
-                  onToggle={toggleHobby}
-                />
-              </View>
-
-              <View className="mt-6 gap-4">
-                <EditField
-                  label="Display name"
-                  value={draft.displayName}
-                  onFocus={scrollFocusedInputIntoView}
-                  onChangeText={(displayName) => updateDraft({ displayName })}
-                />
-                <EditField
-                  label="Phone number"
-                  value={draft.phoneNumber}
-                  keyboardType="phone-pad"
-                  onFocus={scrollFocusedInputIntoView}
-                  onChangeText={(phoneNumber) => updateDraft({ phoneNumber })}
-                />
-                <EditField
-                  label="Age"
-                  value={draft.age}
-                  keyboardType="number-pad"
-                  onFocus={scrollFocusedInputIntoView}
-                  onChangeText={(age) => updateDraft({ age })}
-                />
-                <EditField
-                  label="Bio"
-                  value={draft.description}
-                  multiline
-                  onFocus={scrollFocusedInputIntoView}
-                  onChangeText={(description) => updateDraft({ description })}
-                />
-              </View>
-            </ScrollView>
+              )}
+            </Pressable>
           </View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+
+          <View className="mt-5">
+            <View className="flex-row items-end justify-between">
+              <View>
+                <Text className="font-jakarta-bold text-[15px] text-[#171819]">
+                  Gallery photos
+                </Text>
+                <Text className="mt-1 font-jakarta text-[12px] text-[#777873]">
+                  Add up to 3 photos
+                </Text>
+              </View>
+              <Text className="font-jakarta-bold text-[12px] text-[#777873]">
+                {draft.photoUrls.length}/3
+              </Text>
+            </View>
+
+            <View className="mt-3 flex-row gap-3">
+              {Array.from({ length: 3 }).map((_, index) => {
+                const photoUri = draft.photoUrls[index];
+
+                return (
+                  <EditablePhotoTile
+                    key={index}
+                    uri={photoUri}
+                    onPick={() =>
+                      pickGalleryPhoto(photoUri ? index : undefined)
+                    }
+                    onRemove={() => removeGalleryPhoto(index)}
+                  />
+                );
+              })}
+            </View>
+          </View>
+
+          <View className="mt-6 gap-4">
+            <Text className="font-jakarta-bold text-[15px] text-[#171819]">
+              Campus details
+            </Text>
+            <OptionSelectField
+              label="Campus"
+              value={draft.campusId}
+              options={campusOptions}
+              placeholder={
+                isMasterDataLoading ? "Loading campuses..." : "Choose campus"
+              }
+              disabled={isMasterDataLoading || campusOptions.length === 0}
+              onChange={(campusId) => updateDraft({ campusId })}
+            />
+            <OptionSelectField
+              label="Major"
+              value={draft.majorId}
+              options={majorOptions}
+              placeholder={
+                isMasterDataLoading ? "Loading majors..." : "Choose major"
+              }
+              disabled={isMasterDataLoading || majorOptions.length === 0}
+              onChange={(majorId) => updateDraft({ majorId })}
+            />
+          </View>
+
+          <View className="mt-6">
+            <View className="flex-row items-end justify-between">
+              <View>
+                <Text className="font-jakarta-bold text-[15px] text-[#171819]">
+                  Hobbies
+                </Text>
+                <Text className="mt-1 font-jakarta text-[12px] text-[#777873]">
+                  Choose up to {MAX_HOBBY_SELECTIONS} things people should
+                  notice
+                </Text>
+              </View>
+              <Text className="font-jakarta-bold text-[12px] text-[#777873]">
+                {draft.hobbyIds.length}/{MAX_HOBBY_SELECTIONS}
+              </Text>
+            </View>
+            <HobbyPicker
+              options={hobbyOptions}
+              selectedValues={draft.hobbyIds}
+              maxSelected={MAX_HOBBY_SELECTIONS}
+              disabled={isMasterDataLoading}
+              onToggle={toggleHobby}
+            />
+          </View>
+
+          <View className="mt-6 gap-4">
+            <EditField
+              label="Display name"
+              value={draft.displayName}
+              onFocus={scrollFocusedInputIntoView}
+              onChangeText={(displayName) => updateDraft({ displayName })}
+            />
+            <EditField
+              label="Phone number"
+              value={draft.phoneNumber}
+              keyboardType="phone-pad"
+              onFocus={scrollFocusedInputIntoView}
+              onChangeText={(phoneNumber) => updateDraft({ phoneNumber })}
+            />
+            <EditField
+              label="Age"
+              value={draft.age}
+              keyboardType="number-pad"
+              onFocus={scrollFocusedInputIntoView}
+              onChangeText={(age) => updateDraft({ age })}
+            />
+            <EditField
+              label="Bio"
+              value={draft.description}
+              multiline
+              onFocus={scrollFocusedInputIntoView}
+              onChangeText={(description) => updateDraft({ description })}
+            />
+          </View>
+        </KeyboardAwareScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -756,7 +730,6 @@ function EditField({
         }`}
         placeholderTextColor="#8D8D8D"
         onFocus={onFocus}
-        onBlur={Keyboard.dismiss}
         onChangeText={onChangeText}
       />
     </View>
@@ -765,23 +738,26 @@ function EditField({
 
 function EditProfileSkeleton() {
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-[#F6F6F6]">
       <StatusBar style="dark" />
-      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white px-5">
-        <View className="h-16 flex-row items-center justify-between">
-          <SkeletonBlock className="h-10 w-10 rounded-full" />
+      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
+        <View className="h-[88px] flex-row items-center border-b border-[#EFEFEF] bg-white px-6 pt-8">
+          <SkeletonBlock className="mr-4 h-10 w-10 rounded-md" />
           <SkeletonBlock className="h-6 w-28 rounded-md" />
-          <SkeletonBlock className="h-10 w-[78px] rounded-full" />
+          <View className="flex-1" />
+          <SkeletonBlock className="h-10 w-[74px] rounded-full" />
         </View>
-        <SkeletonBlock className="mt-2 aspect-[4/5] w-full rounded-[22px]" />
-        <View className="mt-5 flex-row gap-3">
-          <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
-          <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
-          <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
+        <View className="flex-1 px-5 pt-5">
+          <SkeletonBlock className="aspect-[4/5] w-full rounded-[22px]" />
+          <View className="mt-5 flex-row gap-3">
+            <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
+            <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
+            <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
+          </View>
+          <SkeletonBlock className="mt-6 h-12 w-full rounded-2xl" />
+          <SkeletonBlock className="mt-4 h-12 w-full rounded-2xl" />
+          <SkeletonBlock className="mt-4 h-[112px] w-full rounded-2xl" />
         </View>
-        <SkeletonBlock className="mt-6 h-12 w-full rounded-2xl" />
-        <SkeletonBlock className="mt-4 h-12 w-full rounded-2xl" />
-        <SkeletonBlock className="mt-4 h-[112px] w-full rounded-2xl" />
       </View>
     </SafeAreaView>
   );

@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { loginAccount } from "../lib/api/auth";
 import { saveAuthSession } from "../lib/auth/session";
@@ -66,11 +66,20 @@ export default function LoginScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <KeyboardAvoidingView
-        behavior="translate-with-padding"
-        className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-      >
-        <View className="flex-1 px-5 pb-8 pt-7">
+      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
+        <KeyboardAwareScrollView
+          className="flex-1"
+          bottomOffset={24}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingBottom: 32,
+            paddingHorizontal: 20,
+            paddingTop: 28,
+          }}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Pressable
             className="h-10 w-10 items-center justify-center"
             accessibilityRole="button"
@@ -162,8 +171,8 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
     </SafeAreaView>
   );
 }
