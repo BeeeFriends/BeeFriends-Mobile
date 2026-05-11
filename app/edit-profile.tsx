@@ -34,6 +34,8 @@ import { getValidAuthSession, saveAuthSession } from "../lib/auth/session";
 import { updateCurrentUserProfile, uploadProfilePhoto } from "../lib/api/users";
 import { goBackOrReplace } from "../lib/navigation/back";
 
+const MAX_HOBBY_SELECTIONS = 10;
+
 type EditProfileDraft = {
   displayName: string;
   phoneNumber: string;
@@ -189,6 +191,18 @@ export default function EditProfileScreen() {
   const toggleHobby = (hobbyId: string) => {
     if (!draft) return;
 
+    if (
+      !draft.hobbyIds.includes(hobbyId) &&
+      draft.hobbyIds.length >= MAX_HOBBY_SELECTIONS
+    ) {
+      showToast({
+        title: "Too many hobbies",
+        message: `You can choose up to ${MAX_HOBBY_SELECTIONS} hobbies.`,
+        kind: "info",
+      });
+      return;
+    }
+
     updateDraft({
       hobbyIds: draft.hobbyIds.includes(hobbyId)
         ? draft.hobbyIds.filter((selectedHobbyId) => selectedHobbyId !== hobbyId)
@@ -230,6 +244,14 @@ export default function EditProfileScreen() {
       showToast({
         title: "Profile incomplete",
         message: "Please choose at least one hobby.",
+      });
+      return;
+    }
+
+    if (draft.hobbyIds.length > MAX_HOBBY_SELECTIONS) {
+      showToast({
+        title: "Too many hobbies",
+        message: `Please keep your hobbies to ${MAX_HOBBY_SELECTIONS} or fewer.`,
       });
       return;
     }
@@ -442,16 +464,18 @@ export default function EditProfileScreen() {
                       Hobbies
                     </Text>
                     <Text className="mt-1 font-jakarta text-[12px] text-[#777873]">
-                      Choose what you want people to notice
+                      Choose up to {MAX_HOBBY_SELECTIONS} things people should
+                      notice
                     </Text>
                   </View>
                   <Text className="font-jakarta-bold text-[12px] text-[#777873]">
-                    {draft.hobbyIds.length}
+                    {draft.hobbyIds.length}/{MAX_HOBBY_SELECTIONS}
                   </Text>
                 </View>
                 <HobbyPicker
                   options={hobbyOptions}
                   selectedValues={draft.hobbyIds}
+                  maxSelected={MAX_HOBBY_SELECTIONS}
                   disabled={isMasterDataLoading}
                   onToggle={toggleHobby}
                 />
@@ -596,14 +620,18 @@ function RequiredLabel({ children }: { children: string }) {
 function HobbyPicker({
   options,
   selectedValues,
+  maxSelected,
   disabled,
   onToggle,
 }: {
   options: SelectOption[];
   selectedValues: string[];
+  maxSelected: number;
   disabled?: boolean;
   onToggle: (value: string) => void;
 }) {
+  const isSelectionFull = selectedValues.length >= maxSelected;
+
   return (
     <View className="mt-4 flex-row flex-wrap gap-2">
       {disabled ? (
@@ -617,6 +645,7 @@ function HobbyPicker({
       ) : (
         options.map((option) => {
           const isSelected = selectedValues.includes(option.value);
+          const isOverLimitOption = isSelectionFull && !isSelected;
 
           return (
             <Pressable
@@ -625,7 +654,7 @@ function HobbyPicker({
                 isSelected
                   ? "border-[#211C1D] bg-[#211C1D]"
                   : "border-[#211C1D] bg-white"
-              }`}
+              } ${isOverLimitOption ? "opacity-45" : ""}`}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelected }}
               onPress={() => onToggle(option.value)}

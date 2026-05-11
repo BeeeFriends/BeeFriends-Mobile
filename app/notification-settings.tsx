@@ -16,6 +16,7 @@ import {
 import { getValidAuthSession } from "../lib/auth/session";
 import { goBackOrReplace } from "../lib/navigation/back";
 
+const TEXT_COLOR = "#171819";
 const fallbackSettings = (userId: number): NotificationSettingsDto => ({
   userId,
   matchEnabled: true,
@@ -27,7 +28,9 @@ const SERVER_SYNC_TIMEOUT_MS = 8000;
 
 export default function NotificationSettingsScreen() {
   const [userId, setUserId] = useState<number | null>(null);
-  const [settings, setSettings] = useState<NotificationSettingsDto | null>(null);
+  const [settings, setSettings] = useState<NotificationSettingsDto | null>(
+    null,
+  );
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [savingKeys, setSavingKeys] = useState<
     Partial<Record<keyof Omit<NotificationSettingsDto, "userId">, boolean>>
@@ -71,7 +74,7 @@ export default function NotificationSettingsScreen() {
             message:
               error instanceof Error
                 ? error.message
-            : "Could not load notification settings.",
+                : "Could not load notification settings.",
           });
         }
       } finally {
@@ -132,59 +135,53 @@ export default function NotificationSettingsScreen() {
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
       <ToastBanner toast={toast} onDismiss={hideToast} />
-      <View className="mx-auto w-full max-w-[430px] flex-1 px-6 pt-4">
-        <View className="flex-row items-center">
+      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
+        <View className="h-[88px] flex-row items-center border-b border-[#EFEFEF] bg-white px-6 pt-8">
           <Pressable
-            className="h-10 w-10 items-center justify-center rounded-full bg-[#F6F6F6]"
+            className="mr-4 h-10 w-10 items-center justify-center"
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel="Close smart notifications"
             onPress={() => goBackOrReplace("/settings")}
           >
-            <Ionicons name="chevron-back" size={22} color="#171819" />
+            <Ionicons name="close" size={28} color={TEXT_COLOR} />
           </Pressable>
-          <Text className="ml-3 font-jakarta-bold text-[22px] leading-7 text-[#171819]">
-            Notifications
+          <Text className="font-jakarta-bold text-[20px] leading-7 text-[#171819]">
+            Smart Notifications
           </Text>
         </View>
 
-        <View className="mt-7 overflow-hidden rounded-[18px] border border-[#EFEFEF] bg-white">
-          {isLoadingSettings || !settings ? (
-            <SettingsLoadingRows />
-          ) : (
-            <>
-              <SettingRow
-                title="New matches"
-                subtitle="When someone likes you back"
-                value={settings.matchEnabled}
-                disabled={Boolean(savingKeys.matchEnabled)}
-                onValueChange={(value) => saveSetting("matchEnabled", value)}
-              />
-              <Divider />
-              <SettingRow
-                title="Chat messages"
-                subtitle="Messages from active matches"
-                value={settings.chatEnabled}
-                disabled={Boolean(savingKeys.chatEnabled)}
-                onValueChange={(value) => saveSetting("chatEnabled", value)}
-              />
-              <Divider />
-              <SettingRow
-                title="Device push"
-                subtitle="Show alerts on your phone"
-                value={settings.pushEnabled}
-                disabled={Boolean(savingKeys.pushEnabled)}
-                onValueChange={(value) => saveSetting("pushEnabled", value)}
-              />
-              <Divider />
-              <SettingRow
-                title="In-app inbox"
-                subtitle="Save notifications in BeeFriends"
-                value={settings.inAppEnabled}
-                disabled={Boolean(savingKeys.inAppEnabled)}
-                onValueChange={(value) => saveSetting("inAppEnabled", value)}
-              />
-            </>
-          )}
+        <View className="flex-1 px-6">
+          <View className="mt-7 overflow-hidden rounded-[18px] border border-[#EFEFEF] bg-white">
+            {isLoadingSettings || !settings ? (
+              <SettingsLoadingRows />
+            ) : (
+              <>
+                <SettingRow
+                  title="New matches"
+                  subtitle="When someone likes you back"
+                  value={settings.matchEnabled}
+                  disabled={Boolean(savingKeys.matchEnabled)}
+                  onValueChange={(value) => saveSetting("matchEnabled", value)}
+                />
+                <Divider />
+                <SettingRow
+                  title="Device push"
+                  subtitle="Show alerts on your phone"
+                  value={settings.pushEnabled}
+                  disabled={Boolean(savingKeys.pushEnabled)}
+                  onValueChange={(value) => saveSetting("pushEnabled", value)}
+                />
+                <Divider />
+                <SettingRow
+                  title="In-app inbox"
+                  subtitle="Save notifications in BeeFriends"
+                  value={settings.inAppEnabled}
+                  disabled={Boolean(savingKeys.inAppEnabled)}
+                  onValueChange={(value) => saveSetting("inAppEnabled", value)}
+                />
+              </>
+            )}
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -230,7 +227,11 @@ function toBoolean(value: unknown, fallback: boolean) {
   return fallback;
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+) {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => {
@@ -280,7 +281,7 @@ function Divider() {
 function SettingsLoadingRows() {
   return (
     <View>
-      {Array.from({ length: 4 }).map((_, index) => (
+      {Array.from({ length: 3 }).map((_, index) => (
         <View key={index}>
           <View className="flex-row items-center px-4 py-4">
             <View className="flex-1 pr-4">
@@ -289,7 +290,7 @@ function SettingsLoadingRows() {
             </View>
             <View className="h-8 w-12 rounded-full bg-[#EFEFEF]" />
           </View>
-          {index < 3 ? <Divider /> : null}
+          {index < 2 ? <Divider /> : null}
         </View>
       ))}
     </View>

@@ -2,7 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, Image, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  AppState,
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NotificationItemDto } from "@beefriends/shared-kernel/dto/notification";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
@@ -22,13 +29,17 @@ import {
   setUnreadNotificationCount,
 } from "../lib/notifications/unreadNotifications";
 
+const TEXT_COLOR = "#171819";
+
 type EnrichedNotification = NotificationItemDto & {
   senderProfile?: UserProfileDto | null;
 };
 
 export default function NotificationsScreen() {
   const [userId, setUserId] = useState<number | null>(null);
-  const [notifications, setNotifications] = useState<EnrichedNotification[]>([]);
+  const [notifications, setNotifications] = useState<EnrichedNotification[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   const loadNotifications = useCallback(
@@ -49,9 +60,7 @@ export default function NotificationsScreen() {
           new Set(
             nextNotifications
               .filter((notification) => notification.type === "CHAT")
-              .map((notification) =>
-                Number(notification.data?.senderId ?? NaN),
-              )
+              .map((notification) => Number(notification.data?.senderId ?? NaN))
               .filter((userId) => Number.isInteger(userId) && userId > 0),
           ),
         );
@@ -75,13 +84,15 @@ export default function NotificationsScreen() {
             ...notification,
             senderProfile:
               notification.type === "CHAT" && Number.isInteger(senderId)
-                ? senderProfileById.get(senderId) ?? null
+                ? (senderProfileById.get(senderId) ?? null)
                 : null,
           };
         });
 
         setNotifications(enrichedNotifications);
-        setUnreadNotificationCount(countUnreadNotifications(enrichedNotifications));
+        setUnreadNotificationCount(
+          countUnreadNotifications(enrichedNotifications),
+        );
       } catch {
         if (showLoading) {
           setNotifications([]);
@@ -123,7 +134,9 @@ export default function NotificationsScreen() {
         setUnreadNotificationCount(countUnreadNotifications(nextNotifications));
         return nextNotifications;
       });
-      await markNotificationRead(notification.id, userId).catch(() => undefined);
+      await markNotificationRead(notification.id, userId).catch(
+        () => undefined,
+      );
     }
 
     if (notification.type === "CHAT" && notification.data?.conversationId) {
@@ -135,10 +148,9 @@ export default function NotificationsScreen() {
         params: {
           conversationId: notification.data.conversationId,
           participantId:
-            Number.isInteger(senderId) && senderId > 0
-              ? String(senderId)
-              : "",
-          name: senderProfile?.displayName?.trim() || notification.title || "Chat",
+            Number.isInteger(senderId) && senderId > 0 ? String(senderId) : "",
+          name:
+            senderProfile?.displayName?.trim() || notification.title || "Chat",
           photoUrl: getProfilePhotoUri(senderProfile),
           profile: senderProfile ? JSON.stringify(senderProfile) : "",
         },
@@ -163,17 +175,17 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <View className="mx-auto w-full max-w-[430px] flex-1 px-6 pt-4">
-        <View className="flex-row items-center">
+      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
+        <View className="h-[88px] flex-row items-center border-b border-[#EFEFEF] bg-white px-6 pt-8">
           <Pressable
-            className="h-10 w-10 items-center justify-center rounded-full bg-[#F6F6F6]"
+            className="mr-4 h-10 w-10 items-center justify-center"
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel="Close notifications"
             onPress={() => goBackOrReplace("/home")}
           >
-            <Ionicons name="chevron-back" size={22} color="#171819" />
+            <Ionicons name="close" size={28} color={TEXT_COLOR} />
           </Pressable>
-          <Text className="ml-3 flex-1 font-jakarta-bold text-[22px] leading-7 text-[#171819]">
+          <Text className="flex-1 font-jakarta-bold text-[20px] leading-7 text-[#171819]">
             Notifications
           </Text>
           {!!notifications.length && (
@@ -189,43 +201,45 @@ export default function NotificationsScreen() {
           )}
         </View>
 
-        {isLoading ? (
-          <View className="mt-7 gap-3">
-            <NotificationSkeleton />
-            <NotificationSkeleton />
-            <NotificationSkeleton />
-          </View>
-        ) : notifications.length ? (
-          <ScrollView
-            className="mt-5 flex-1"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 28 }}
-          >
-            {notifications.map((notification) => (
-              <NotificationRow
-                key={notification.id}
-                notification={notification}
-                onPress={() => openNotification(notification)}
-              />
-            ))}
-          </ScrollView>
-        ) : (
-          <View className="flex-1 items-center justify-center px-6 pb-16">
-            <View className="h-16 w-16 items-center justify-center rounded-full bg-[#FFF7BE]">
-              <Ionicons
-                name="notifications-outline"
-                size={28}
-                color="#171819"
-              />
+        <View className="flex-1 px-6">
+          {isLoading ? (
+            <View className="mt-7 gap-3">
+              <NotificationSkeleton />
+              <NotificationSkeleton />
+              <NotificationSkeleton />
             </View>
-            <Text className="mt-4 text-center font-jakarta-bold text-[20px] leading-7 text-[#171819]">
-              No notifications yet
-            </Text>
-            <Text className="mt-2 text-center font-jakarta-regular text-[13px] leading-5 text-[#8A8C8E]">
-              Match and chat updates will show up here.
-            </Text>
-          </View>
-        )}
+          ) : notifications.length ? (
+            <ScrollView
+              className="mt-5 flex-1"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 28 }}
+            >
+              {notifications.map((notification) => (
+                <NotificationRow
+                  key={notification.id}
+                  notification={notification}
+                  onPress={() => openNotification(notification)}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View className="flex-1 items-center justify-center px-6 pb-16">
+              <View className="h-16 w-16 items-center justify-center rounded-full bg-[#FFF7BE]">
+                <Ionicons
+                  name="notifications-outline"
+                  size={28}
+                  color="#171819"
+                />
+              </View>
+              <Text className="mt-4 text-center font-jakarta-bold text-[20px] leading-7 text-[#171819]">
+                No notifications yet
+              </Text>
+              <Text className="mt-2 text-center font-jakarta-regular text-[13px] leading-5 text-[#8A8C8E]">
+                Match and chat updates will show up here.
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -239,7 +253,9 @@ function NotificationRow({
   onPress: () => void;
 }) {
   const isChat = notification.type === "CHAT";
-  const avatarUri = isChat ? getProfilePhotoUri(notification.senderProfile) : "";
+  const avatarUri = isChat
+    ? getProfilePhotoUri(notification.senderProfile)
+    : "";
   const iconName =
     notification.type === "MATCH" ? "heart-outline" : "chatbubble-outline";
 
@@ -251,7 +267,11 @@ function NotificationRow({
     >
       <View className="h-11 w-11 overflow-hidden rounded-full bg-[#FFF7BE]">
         {isChat && avatarUri ? (
-          <Image source={{ uri: avatarUri }} className="h-full w-full" resizeMode="cover" />
+          <Image
+            source={{ uri: avatarUri }}
+            className="h-full w-full"
+            resizeMode="cover"
+          />
         ) : (
           <View className="h-full w-full items-center justify-center">
             <Ionicons name={iconName} size={21} color="#171819" />

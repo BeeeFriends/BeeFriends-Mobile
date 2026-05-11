@@ -688,11 +688,7 @@ export default function ChatRoomScreen() {
     <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
       <ToastBanner toast={toast} onDismiss={hideToast} />
-      <KeyboardAvoidingView
-        className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        behavior="translate-with-padding"
-        keyboardVerticalOffset={0}
-      >
+      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
         <View className="h-[72px] flex-row items-center border-b border-[#F1F1F1] bg-white px-4">
           <Pressable
             className="h-10 w-10 items-center justify-center rounded-full bg-[#F5F5F5]"
@@ -754,153 +750,161 @@ export default function ChatRoomScreen() {
           </Pressable>
         </View>
 
-        {isLoading ? (
-          <ChatRoomSkeleton />
-        ) : messages.length === 0 ? (
-          <ChatRoomEmptyState />
-        ) : (
-          <FlatList
-            ref={messageListRef}
-            data={messages}
-            keyExtractor={(message) => message.id}
-            className="flex-1 bg-[#FAFAFA] px-4"
-            contentContainerStyle={{
-              paddingTop: 20,
-              paddingBottom: isKeyboardOpen ? 12 : 20,
-            }}
-            keyboardDismissMode={
-              Platform.OS === "ios" ? "interactive" : "on-drag"
-            }
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={() =>
-              messageListRef.current?.scrollToEnd({ animated: true })
-            }
-            onLayout={() =>
-              messageListRef.current?.scrollToEnd({ animated: false })
-            }
-            ListHeaderComponent={
-              <View className="mb-5 self-center rounded-full bg-white px-3 py-1 shadow-sm">
-                <Text className="font-jakarta-semibold text-[11px] text-[#777873]">
-                  Today
-                </Text>
-              </View>
-            }
-            ListFooterComponent={
-              isParticipantTyping ? <TypingIndicatorBubble /> : null
-            }
-            renderItem={({ item: message }) => (
-              <MessageBubble
-                message={message}
-                isMine={message.senderId === currentUserId}
-                participantId={participantId}
-                onPreviewImage={setPreviewImageUri}
-              />
-            )}
-          />
-        )}
-
-        <View
-          className="border-t border-[#F1F1F1] bg-white px-4 pt-3"
-          style={{ paddingBottom: composerBottomPadding }}
+        <KeyboardAvoidingView
+          className="flex-1 bg-white"
+          behavior="translate-with-padding"
+          keyboardVerticalOffset={0}
         >
-          {selectedImageUri ? (
-            <View className="mb-3 flex-row items-center rounded-3xl bg-[#F7F7F7] p-2">
-              <View className="overflow-hidden rounded-2xl bg-[#F1F1F1]">
-                <Image
-                  source={{ uri: selectedImageUri }}
-                  className="h-16 w-16"
-                  resizeMode="cover"
+          {isLoading ? (
+            <ChatRoomSkeleton />
+          ) : messages.length === 0 ? (
+            <ChatRoomEmptyState />
+          ) : (
+            <FlatList
+              ref={messageListRef}
+              data={messages}
+              keyExtractor={(message) => message.id}
+              className="flex-1 bg-[#FAFAFA] px-4"
+              contentContainerStyle={{
+                paddingTop: 20,
+                paddingBottom: isKeyboardOpen ? 12 : 20,
+              }}
+              keyboardDismissMode={
+                Platform.OS === "ios" ? "interactive" : "on-drag"
+              }
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              onContentSizeChange={() =>
+                messageListRef.current?.scrollToEnd({ animated: true })
+              }
+              onLayout={() =>
+                messageListRef.current?.scrollToEnd({ animated: false })
+              }
+              ListHeaderComponent={
+                <View className="mb-5 self-center rounded-full bg-white px-3 py-1 shadow-sm">
+                  <Text className="font-jakarta-semibold text-[11px] text-[#777873]">
+                    Today
+                  </Text>
+                </View>
+              }
+              ListFooterComponent={
+                isParticipantTyping ? <TypingIndicatorBubble /> : null
+              }
+              renderItem={({ item: message }) => (
+                <MessageBubble
+                  message={message}
+                  isMine={message.senderId === currentUserId}
+                  participantId={participantId}
+                  onPreviewImage={setPreviewImageUri}
+                />
+              )}
+            />
+          )}
+
+          <View
+            className="border-t border-[#F1F1F1] bg-white px-4 pt-3"
+            style={{ paddingBottom: composerBottomPadding }}
+          >
+            {selectedImageUri ? (
+              <View className="mb-3 flex-row items-center rounded-3xl bg-[#F7F7F7] p-2">
+                <View className="overflow-hidden rounded-2xl bg-[#F1F1F1]">
+                  <Image
+                    source={{ uri: selectedImageUri }}
+                    className="h-16 w-16"
+                    resizeMode="cover"
+                  />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="font-jakarta-bold text-[13px] text-[#171819]">
+                    Image ready
+                  </Text>
+                  <Text className="mt-1 font-jakarta text-[11px] text-[#777873]">
+                    Add a message or send it now.
+                  </Text>
+                </View>
+                <Pressable
+                  className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                  accessibilityRole="button"
+                  onPress={() => setSelectedImageUri("")}
+                >
+                  <Ionicons name="close" size={17} color="#171819" />
+                </Pressable>
+              </View>
+            ) : null}
+
+            {isEmojiTrayOpen ? (
+              <EmojiPanel
+                activeCategoryId={activeEmojiCategoryId}
+                activeEmojis={activeEmojiCategory.emojis}
+                onSelectCategory={setActiveEmojiCategoryId}
+                onSelectEmoji={addEmoji}
+              />
+            ) : null}
+
+            <View className="flex-row items-end">
+              <Pressable
+                className="mr-2 h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F5]"
+                accessibilityRole="button"
+                accessibilityLabel="Add image"
+                onPress={pickImage}
+              >
+                <Ionicons name="image-outline" size={21} color="#171819" />
+              </Pressable>
+
+              <Pressable
+                className={`mr-2 h-11 w-11 items-center justify-center rounded-full ${
+                  isEmojiTrayOpen ? "bg-[#FFE036]" : "bg-[#F5F5F5]"
+                }`}
+                accessibilityRole="button"
+                accessibilityLabel="Open emoji picker"
+                onPress={toggleEmojiTray}
+              >
+                <Ionicons name="happy-outline" size={20} color="#171819" />
+              </Pressable>
+
+              <View className="min-h-11 flex-1 flex-row items-end rounded-[22px] bg-[#F5F5F5] px-3 py-1">
+                <TextInput
+                  value={messageText}
+                  multiline
+                  scrollEnabled
+                  placeholder="Message"
+                  placeholderTextColor="#8D8D8D"
+                  className="max-h-28 flex-1 px-1 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
+                  textAlignVertical={
+                    messageText.includes("\n") ? "top" : "center"
+                  }
+                  onFocus={() => {
+                    setIsEmojiTrayOpen(false);
+                    requestAnimationFrame(() => {
+                      messageListRef.current?.scrollToEnd({ animated: true });
+                    });
+                  }}
+                  onChangeText={handleMessageTextChange}
                 />
               </View>
-              <View className="ml-3 flex-1">
-                <Text className="font-jakarta-bold text-[13px] text-[#171819]">
-                  Image ready
-                </Text>
-                <Text className="mt-1 font-jakarta text-[11px] text-[#777873]">
-                  Add a message or send it now.
-                </Text>
-              </View>
+
               <Pressable
-                className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                className={`ml-2 h-11 w-11 items-center justify-center rounded-full ${
+                  (messageText.trim() || selectedImageUri) && !isSending
+                    ? "bg-[#171819]"
+                    : "bg-[#D9D9D9]"
+                }`}
                 accessibilityRole="button"
-                onPress={() => setSelectedImageUri("")}
+                disabled={
+                  (!messageText.trim() && !selectedImageUri) || isSending
+                }
+                onPress={handleSend}
               >
-                <Ionicons name="close" size={17} color="#171819" />
+                {isSending ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Ionicons name="send" size={16} color="#FFFFFF" />
+                )}
               </Pressable>
             </View>
-          ) : null}
-
-          {isEmojiTrayOpen ? (
-            <EmojiPanel
-              activeCategoryId={activeEmojiCategoryId}
-              activeEmojis={activeEmojiCategory.emojis}
-              onSelectCategory={setActiveEmojiCategoryId}
-              onSelectEmoji={addEmoji}
-            />
-          ) : null}
-
-          <View className="flex-row items-end">
-            <Pressable
-              className="mr-2 h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F5]"
-              accessibilityRole="button"
-              accessibilityLabel="Add image"
-              onPress={pickImage}
-            >
-              <Ionicons name="image-outline" size={21} color="#171819" />
-            </Pressable>
-
-            <Pressable
-              className={`mr-2 h-11 w-11 items-center justify-center rounded-full ${
-                isEmojiTrayOpen ? "bg-[#FFE036]" : "bg-[#F5F5F5]"
-              }`}
-              accessibilityRole="button"
-              accessibilityLabel="Open emoji picker"
-              onPress={toggleEmojiTray}
-            >
-              <Ionicons name="happy-outline" size={20} color="#171819" />
-            </Pressable>
-
-            <View className="min-h-11 flex-1 flex-row items-end rounded-[22px] bg-[#F5F5F5] px-3 py-1">
-              <TextInput
-                value={messageText}
-                multiline
-                scrollEnabled
-                placeholder="Message"
-                placeholderTextColor="#8D8D8D"
-                className="max-h-28 flex-1 px-1 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
-                textAlignVertical={
-                  messageText.includes("\n") ? "top" : "center"
-                }
-                onFocus={() => {
-                  setIsEmojiTrayOpen(false);
-                  requestAnimationFrame(() => {
-                    messageListRef.current?.scrollToEnd({ animated: true });
-                  });
-                }}
-                onChangeText={handleMessageTextChange}
-              />
-            </View>
-
-            <Pressable
-              className={`ml-2 h-11 w-11 items-center justify-center rounded-full ${
-                (messageText.trim() || selectedImageUri) && !isSending
-                  ? "bg-[#171819]"
-                  : "bg-[#D9D9D9]"
-              }`}
-              accessibilityRole="button"
-              disabled={(!messageText.trim() && !selectedImageUri) || isSending}
-              onPress={handleSend}
-            >
-              {isSending ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Ionicons name="send" size={16} color="#FFFFFF" />
-              )}
-            </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
       <ImagePreviewModal
         uri={previewImageUri}
         onClose={() => setPreviewImageUri("")}
