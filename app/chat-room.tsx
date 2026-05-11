@@ -16,7 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -219,6 +219,7 @@ export default function ChatRoomScreen() {
   const [isEmojiTrayOpen, setIsEmojiTrayOpen] = useState(false);
   const [activeEmojiCategoryId, setActiveEmojiCategoryId] =
     useState<(typeof emojiCategories)[number]["id"]>("recent");
+  const [composerHeight, setComposerHeight] = useState(0);
   const [isParticipantOnline, setIsParticipantOnline] = useState<
     boolean | null
   >(null);
@@ -531,6 +532,8 @@ export default function ChatRoomScreen() {
   const activeEmojiCategory =
     emojiCategories.find((category) => category.id === activeEmojiCategoryId) ??
     emojiCategories[0];
+  const messageListBottomPadding =
+    isKeyboardOpen && composerHeight > 0 ? composerHeight + 12 : 20;
   const composerBottomPadding = isKeyboardOpen
     ? 8
     : Math.max(insets.bottom, 16);
@@ -692,7 +695,16 @@ export default function ChatRoomScreen() {
   const toggleEmojiTray = () => {
     if (isComposerBusy) return;
 
-    setIsEmojiTrayOpen((isOpen) => !isOpen);
+    setIsEmojiTrayOpen((isOpen) => {
+      const shouldOpen = !isOpen;
+
+      if (shouldOpen) {
+        Keyboard.dismiss();
+        setIsKeyboardOpen(false);
+      }
+
+      return shouldOpen;
+    });
   };
 
   const openProfileDetail = (profilePayload?: string) => {
@@ -770,11 +782,7 @@ export default function ChatRoomScreen() {
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          className="flex-1 bg-white"
-          behavior="translate-with-padding"
-          keyboardVerticalOffset={0}
-        >
+        <View className="flex-1 overflow-hidden bg-[#FAFAFA]">
           {isLoading ? (
             <ChatRoomSkeleton />
           ) : messages.length === 0 ? (
@@ -787,7 +795,7 @@ export default function ChatRoomScreen() {
               className="flex-1 bg-[#FAFAFA] px-4"
               contentContainerStyle={{
                 paddingTop: 20,
-                paddingBottom: isKeyboardOpen ? 12 : 20,
+                paddingBottom: messageListBottomPadding,
               }}
               keyboardDismissMode={
                 Platform.OS === "ios" ? "interactive" : "on-drag"
@@ -821,127 +829,136 @@ export default function ChatRoomScreen() {
             />
           )}
 
-          <View
-            className="border-t border-[#F1F1F1] bg-white px-4 pt-3"
-            style={{ paddingBottom: composerBottomPadding }}
+          <KeyboardStickyView
+            className="bg-white"
+            offset={{ closed: 0, opened: 0 }}
+            style={{ zIndex: 10, elevation: 10 }}
           >
-            {selectedImageUri ? (
-              <View className="mb-3 flex-row items-center rounded-3xl bg-[#F7F7F7] p-2">
-                <View className="overflow-hidden rounded-2xl bg-[#F1F1F1]">
-                  <Image
-                    source={{ uri: selectedImageUri }}
-                    className="h-16 w-16"
-                    resizeMode="cover"
-                  />
-                  {isImageSendInProgress ? (
-                    <View className="absolute inset-0 items-center justify-center bg-black/45">
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                    </View>
-                  ) : null}
+            <View
+              className="border-t border-[#F1F1F1] bg-white px-4 pt-3"
+              style={{ paddingBottom: composerBottomPadding }}
+              onLayout={(event) => {
+                setComposerHeight(event.nativeEvent.layout.height);
+              }}
+            >
+              {selectedImageUri ? (
+                <View className="mb-3 flex-row items-center rounded-3xl bg-[#F7F7F7] p-2">
+                  <View className="overflow-hidden rounded-2xl bg-[#F1F1F1]">
+                    <Image
+                      source={{ uri: selectedImageUri }}
+                      className="h-16 w-16"
+                      resizeMode="cover"
+                    />
+                    {isImageSendInProgress ? (
+                      <View className="absolute inset-0 items-center justify-center bg-black/45">
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      </View>
+                    ) : null}
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="font-jakarta-bold text-[13px] text-[#171819]">
+                      {isUploadingAttachment
+                        ? "Uploading image"
+                        : isImageSendInProgress
+                          ? "Sending image"
+                          : "Image ready"}
+                    </Text>
+                    <Text className="mt-1 font-jakarta text-[11px] text-[#777873]">
+                      {isImageSendInProgress
+                        ? "Please wait while we finish this message."
+                        : "Add a message or send it now."}
+                    </Text>
+                  </View>
+                  <Pressable
+                    className={`h-9 w-9 items-center justify-center rounded-full bg-white ${
+                      isComposerBusy ? "opacity-40" : ""
+                    }`}
+                    accessibilityRole="button"
+                    disabled={isComposerBusy}
+                    onPress={() => setSelectedImageUri("")}
+                  >
+                    <Ionicons name="close" size={17} color="#171819" />
+                  </Pressable>
                 </View>
-                <View className="ml-3 flex-1">
-                  <Text className="font-jakarta-bold text-[13px] text-[#171819]">
-                    {isUploadingAttachment
-                      ? "Uploading image"
-                      : isImageSendInProgress
-                        ? "Sending image"
-                        : "Image ready"}
-                  </Text>
-                  <Text className="mt-1 font-jakarta text-[11px] text-[#777873]">
-                    {isImageSendInProgress
-                      ? "Please wait while we finish this message."
-                      : "Add a message or send it now."}
-                  </Text>
-                </View>
+              ) : null}
+
+              {isEmojiTrayOpen ? (
+                <EmojiPanel
+                  activeCategoryId={activeEmojiCategoryId}
+                  activeEmojis={activeEmojiCategory.emojis}
+                  onSelectCategory={setActiveEmojiCategoryId}
+                  onSelectEmoji={addEmoji}
+                />
+              ) : null}
+
+              <View className="flex-row items-end">
                 <Pressable
-                  className={`h-9 w-9 items-center justify-center rounded-full bg-white ${
-                    isComposerBusy ? "opacity-40" : ""
+                  className={`mr-2 h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F5] ${
+                    isComposerBusy ? "opacity-45" : ""
                   }`}
                   accessibilityRole="button"
+                  accessibilityLabel="Add image"
                   disabled={isComposerBusy}
-                  onPress={() => setSelectedImageUri("")}
+                  onPress={pickImage}
                 >
-                  <Ionicons name="close" size={17} color="#171819" />
+                  <Ionicons name="image-outline" size={21} color="#171819" />
+                </Pressable>
+
+                <Pressable
+                  className={`mr-2 h-11 w-11 items-center justify-center rounded-full ${
+                    isEmojiTrayOpen ? "bg-[#FFE036]" : "bg-[#F5F5F5]"
+                  } ${isComposerBusy ? "opacity-45" : ""}`}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open emoji picker"
+                  disabled={isComposerBusy}
+                  onPress={toggleEmojiTray}
+                >
+                  <Ionicons name="happy-outline" size={20} color="#171819" />
+                </Pressable>
+
+                <View className="min-h-11 flex-1 flex-row items-end rounded-[22px] bg-[#F5F5F5] px-3 py-1">
+                  <TextInput
+                    value={messageText}
+                    multiline
+                    scrollEnabled
+                    placeholder="Message"
+                    placeholderTextColor="#8D8D8D"
+                    className="max-h-28 flex-1 px-1 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
+                    editable={!isComposerBusy}
+                    textAlignVertical={
+                      messageText.includes("\n") ? "top" : "center"
+                    }
+                    onPressIn={() => setIsEmojiTrayOpen(false)}
+                    onFocus={() => {
+                      setIsEmojiTrayOpen(false);
+                      requestAnimationFrame(() => {
+                        messageListRef.current?.scrollToEnd({ animated: true });
+                      });
+                    }}
+                    onChangeText={handleMessageTextChange}
+                  />
+                </View>
+
+                <Pressable
+                  className={`ml-2 h-11 w-11 items-center justify-center rounded-full ${
+                    hasSendableContent && !isComposerBusy
+                      ? "bg-[#171819]"
+                      : "bg-[#D9D9D9]"
+                  }`}
+                  accessibilityRole="button"
+                  disabled={!hasSendableContent || isComposerBusy}
+                  onPress={handleSend}
+                >
+                  {isComposerBusy ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Ionicons name="send" size={16} color="#FFFFFF" />
+                  )}
                 </Pressable>
               </View>
-            ) : null}
-
-            {isEmojiTrayOpen ? (
-              <EmojiPanel
-                activeCategoryId={activeEmojiCategoryId}
-                activeEmojis={activeEmojiCategory.emojis}
-                onSelectCategory={setActiveEmojiCategoryId}
-                onSelectEmoji={addEmoji}
-              />
-            ) : null}
-
-            <View className="flex-row items-end">
-              <Pressable
-                className={`mr-2 h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F5] ${
-                  isComposerBusy ? "opacity-45" : ""
-                }`}
-                accessibilityRole="button"
-                accessibilityLabel="Add image"
-                disabled={isComposerBusy}
-                onPress={pickImage}
-              >
-                <Ionicons name="image-outline" size={21} color="#171819" />
-              </Pressable>
-
-              <Pressable
-                className={`mr-2 h-11 w-11 items-center justify-center rounded-full ${
-                  isEmojiTrayOpen ? "bg-[#FFE036]" : "bg-[#F5F5F5]"
-                } ${isComposerBusy ? "opacity-45" : ""}`}
-                accessibilityRole="button"
-                accessibilityLabel="Open emoji picker"
-                disabled={isComposerBusy}
-                onPress={toggleEmojiTray}
-              >
-                <Ionicons name="happy-outline" size={20} color="#171819" />
-              </Pressable>
-
-              <View className="min-h-11 flex-1 flex-row items-end rounded-[22px] bg-[#F5F5F5] px-3 py-1">
-                <TextInput
-                  value={messageText}
-                  multiline
-                  scrollEnabled
-                  placeholder="Message"
-                  placeholderTextColor="#8D8D8D"
-                  className="max-h-28 flex-1 px-1 py-2 font-jakarta text-[14px] leading-5 text-[#171819]"
-                  editable={!isComposerBusy}
-                  textAlignVertical={
-                    messageText.includes("\n") ? "top" : "center"
-                  }
-                  onPressIn={() => setIsEmojiTrayOpen(false)}
-                  onFocus={() => {
-                    setIsEmojiTrayOpen(false);
-                    requestAnimationFrame(() => {
-                      messageListRef.current?.scrollToEnd({ animated: true });
-                    });
-                  }}
-                  onChangeText={handleMessageTextChange}
-                />
-              </View>
-
-              <Pressable
-                className={`ml-2 h-11 w-11 items-center justify-center rounded-full ${
-                  hasSendableContent && !isComposerBusy
-                    ? "bg-[#171819]"
-                    : "bg-[#D9D9D9]"
-                }`}
-                accessibilityRole="button"
-                disabled={!hasSendableContent || isComposerBusy}
-                onPress={handleSend}
-              >
-                {isComposerBusy ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Ionicons name="send" size={16} color="#FFFFFF" />
-                )}
-              </Pressable>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardStickyView>
+        </View>
       </View>
       <ImagePreviewModal
         uri={previewImageUri}

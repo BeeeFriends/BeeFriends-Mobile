@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Image,
   Modal,
@@ -12,7 +12,10 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import {
+  KeyboardAwareScrollView,
+  type KeyboardAwareScrollViewRef,
+} from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { registerAccount } from "../lib/api/auth";
 import { getCampusOptions } from "../lib/api/campus";
@@ -35,6 +38,7 @@ const binusianYearOptions: SelectOption[] = Array.from(
 );
 
 const registerImage = require("../assets/images/register.png");
+const MAX_HOBBY_SELECTIONS = 10;
 const maxDescriptionWords = 40;
 
 type RegisterErrors = {
@@ -98,6 +102,7 @@ const getPasswordError = (value: string) => {
 };
 
 export default function RegisterScreen() {
+  const scrollViewRef = useRef<KeyboardAwareScrollViewRef>(null);
   const [activeStep, setActiveStep] = useState(1);
   const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
   const [email, setEmail] = useState("");
@@ -252,14 +257,27 @@ export default function RegisterScreen() {
     if (interests.length === 0) {
       nextErrors.interests = "Please choose at least one interest.";
     }
+    if (interests.length > MAX_HOBBY_SELECTIONS) {
+      nextErrors.interests = `Please choose up to ${MAX_HOBBY_SELECTIONS} interests.`;
+    }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
 
   const toggleInterest = (interest: string) => {
+    const isSelected = interests.includes(interest);
+
+    if (!isSelected && interests.length >= MAX_HOBBY_SELECTIONS) {
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        interests: `You can choose up to ${MAX_HOBBY_SELECTIONS} interests.`,
+      }));
+      return;
+    }
+
     setInterests((currentInterests) =>
-      currentInterests.includes(interest)
+      isSelected
         ? currentInterests.filter((item) => item !== interest)
         : [...currentInterests, interest],
     );
@@ -381,6 +399,14 @@ export default function RegisterScreen() {
     }
   };
 
+  const scrollDescriptionIntoView = () => {
+    if (activeStep !== 5) return;
+
+    setTimeout(() => {
+      scrollViewRef.current?.assureFocusedInputVisible();
+    }, 120);
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
@@ -392,10 +418,7 @@ export default function RegisterScreen() {
           onConfirm={handleConfirmAccount}
         />
       ) : (
-        <KeyboardAvoidingView
-          behavior="translate-with-padding"
-          className="mx-auto w-full max-w-[430px] flex-1 bg-white"
-        >
+        <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
           <View className="flex-1 px-5 pb-5">
             <View className="mt-12 flex-row gap-1">
               {steps.map((step) => (
@@ -408,11 +431,14 @@ export default function RegisterScreen() {
               ))}
             </View>
 
-            <ScrollView
+            <KeyboardAwareScrollView
+              ref={scrollViewRef}
               className="flex-1"
+              bottomOffset={32}
               contentContainerStyle={{
-                paddingBottom: activeStep === 5 ? 180 : 32,
+                paddingBottom: 32,
               }}
+              keyboardDismissMode="on-drag"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -465,6 +491,7 @@ export default function RegisterScreen() {
                 <VibeStep
                   interests={interests}
                   interestOptions={hobbyOptions}
+                  maxSelected={MAX_HOBBY_SELECTIONS}
                   description={description}
                   error={errors.interests}
                   isOptionsLoading={isMasterDataLoading}
@@ -473,9 +500,10 @@ export default function RegisterScreen() {
                   onDescriptionChange={(value) =>
                     setDescription(limitWords(value, maxDescriptionWords))
                   }
+                  onDescriptionFocus={scrollDescriptionIntoView}
                 />
               )}
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             <View className="flex-row items-center justify-between pt-3">
               {activeStep > 1 ? (
@@ -501,7 +529,7 @@ export default function RegisterScreen() {
               </Pressable>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -988,21 +1016,25 @@ function PhotoTile({
 function VibeStep({
   interests,
   interestOptions,
+  maxSelected,
   description,
   error,
   isOptionsLoading,
   optionsError,
   onToggleInterest,
   onDescriptionChange,
+  onDescriptionFocus,
 }: {
   interests: string[];
   interestOptions: SelectOption[];
+  maxSelected: number;
   description: string;
   error?: string;
   isOptionsLoading: boolean;
   optionsError: string;
   onToggleInterest: (interest: string) => void;
   onDescriptionChange: (value: string) => void;
+  onDescriptionFocus: () => void;
 }) {
   return (
     <>
@@ -1016,10 +1048,17 @@ function VibeStep({
       </View>
 
       <View className="mt-7">
-        <RequiredLabel>What do you like?</RequiredLabel>
-        <Text className="-mt-1 font-jakarta text-[11px] leading-4 text-[#777873]">
-          Choose which ones fit you best
-        </Text>
+        <View className="flex-row items-end justify-between">
+          <View className="flex-1 pr-4">
+            <RequiredLabel>What do you like?</RequiredLabel>
+            <Text className="-mt-1 font-jakarta text-[11px] leading-4 text-[#777873]">
+              Choose up to {maxSelected} things people should notice
+            </Text>
+          </View>
+          <Text className="font-jakarta-bold text-[12px] text-[#777873]">
+            {interests.length}/{maxSelected}
+          </Text>
+        </View>
 
         {optionsError ? (
           <View className="mt-4 rounded-xl bg-[#FFF4F4] px-4 py-3">
@@ -1041,6 +1080,8 @@ function VibeStep({
           ) : (
             interestOptions.map((interest) => {
               const isSelected = interests.includes(interest.value);
+              const isOverLimitOption =
+                interests.length >= maxSelected && !isSelected;
 
               return (
                 <Pressable
@@ -1049,7 +1090,7 @@ function VibeStep({
                     isSelected
                       ? "border-[#211C1D] bg-[#211C1D]"
                       : "border-[#211C1D] bg-white"
-                  }`}
+                  } ${isOverLimitOption ? "opacity-45" : ""}`}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
                   onPress={() => onToggleInterest(interest.value)}
@@ -1079,6 +1120,7 @@ function VibeStep({
         <TextInput
           value={description}
           onChangeText={onDescriptionChange}
+          onFocus={onDescriptionFocus}
           multiline
           blurOnSubmit={false}
           textAlignVertical="top"
