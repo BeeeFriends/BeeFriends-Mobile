@@ -438,8 +438,8 @@ export default function RegisterScreen() {
               contentContainerStyle={{
                 paddingBottom: 32,
               }}
-              keyboardDismissMode="on-drag"
-              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="none"
+              keyboardShouldPersistTaps="always"
               showsVerticalScrollIndicator={false}
             >
               {activeStep === 1 ? (

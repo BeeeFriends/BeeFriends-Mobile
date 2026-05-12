@@ -342,7 +342,7 @@ export default function EditProfileScreen() {
             paddingBottom: 32,
             paddingTop: 20,
           }}
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode="none"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

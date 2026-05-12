@@ -185,6 +185,7 @@ export default function ChatRoomScreen() {
     profile?: string;
   }>();
   const messageListRef = useRef<FlatList<MessageDto>>(null);
+  const messageInputRef = useRef<TextInput>(null);
   const readReceiptsSentRef = useRef<Set<string>>(new Set());
   const isTypingRef = useRef(false);
   const typingStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -229,6 +230,16 @@ export default function ChatRoomScreen() {
   const [isSending, setIsSending] = useState(false);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const { toast, showToast, hideToast } = useToast();
+
+  const scrollMessagesToBottom = useCallback((animated = true) => {
+    const scroll = (shouldAnimate: boolean) => {
+      messageListRef.current?.scrollToEnd({ animated: shouldAnimate });
+    };
+
+    requestAnimationFrame(() => scroll(animated));
+    setTimeout(() => scroll(false), 80);
+    setTimeout(() => scroll(false), 220);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -429,18 +440,14 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     if (messages.length === 0) return;
 
-    requestAnimationFrame(() => {
-      messageListRef.current?.scrollToEnd({ animated: true });
-    });
-  }, [messages.length]);
+    scrollMessagesToBottom(true);
+  }, [messages.length, scrollMessagesToBottom]);
 
   useEffect(() => {
     if (!isParticipantTyping) return;
 
-    requestAnimationFrame(() => {
-      messageListRef.current?.scrollToEnd({ animated: true });
-    });
-  }, [isParticipantTyping]);
+    scrollMessagesToBottom(true);
+  }, [isParticipantTyping, scrollMessagesToBottom]);
 
   useEffect(() => {
     if (!conversationId || !currentUserId || isLoading) return;
@@ -506,23 +513,32 @@ export default function ChatRoomScreen() {
       Keyboard.scheduleLayoutAnimation?.(event);
       setIsKeyboardOpen(true);
       setIsEmojiTrayOpen(false);
-      requestAnimationFrame(() => {
-        messageListRef.current?.scrollToEnd({ animated: true });
-      });
+      scrollMessagesToBottom(true);
     });
     const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
       Keyboard.scheduleLayoutAnimation?.(event);
       setIsKeyboardOpen(false);
-      setTimeout(() => {
-        messageListRef.current?.scrollToEnd({ animated: false });
-      }, 80);
+      scrollMessagesToBottom(false);
     });
 
     return () => {
       showSubscription.remove();
       hideSubscription.remove();
     };
-  }, []);
+  }, [scrollMessagesToBottom]);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    scrollMessagesToBottom(false);
+  }, [
+    composerHeight,
+    isEmojiTrayOpen,
+    isKeyboardOpen,
+    isLoading,
+    scrollMessagesToBottom,
+    selectedImageUri,
+  ]);
 
   const title = useMemo(
     () => routeName || conversation?.name || "Chat",
@@ -533,7 +549,7 @@ export default function ChatRoomScreen() {
     emojiCategories.find((category) => category.id === activeEmojiCategoryId) ??
     emojiCategories[0];
   const messageListBottomPadding =
-    isKeyboardOpen && composerHeight > 0 ? composerHeight + 12 : 20;
+    isKeyboardOpen && composerHeight > 0 ? composerHeight + 24 : 20;
   const composerBottomPadding = isKeyboardOpen
     ? 8
     : Math.max(insets.bottom, 16);
@@ -698,9 +714,10 @@ export default function ChatRoomScreen() {
     setIsEmojiTrayOpen((isOpen) => {
       const shouldOpen = !isOpen;
 
-      if (shouldOpen) {
-        Keyboard.dismiss();
-        setIsKeyboardOpen(false);
+      if (shouldOpen && isKeyboardOpen) {
+        requestAnimationFrame(() => {
+          messageInputRef.current?.focus();
+        });
       }
 
       return shouldOpen;
@@ -797,17 +814,11 @@ export default function ChatRoomScreen() {
                 paddingTop: 20,
                 paddingBottom: messageListBottomPadding,
               }}
-              keyboardDismissMode={
-                Platform.OS === "ios" ? "interactive" : "on-drag"
-              }
+              keyboardDismissMode="none"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              onContentSizeChange={() =>
-                messageListRef.current?.scrollToEnd({ animated: true })
-              }
-              onLayout={() =>
-                messageListRef.current?.scrollToEnd({ animated: false })
-              }
+              onContentSizeChange={() => scrollMessagesToBottom(true)}
+              onLayout={() => scrollMessagesToBottom(false)}
               ListHeaderComponent={
                 <View className="mb-5 self-center rounded-full bg-white px-3 py-1 shadow-sm">
                   <Text className="font-jakarta-semibold text-[11px] text-[#777873]">
@@ -918,6 +929,7 @@ export default function ChatRoomScreen() {
 
                 <View className="min-h-11 flex-1 flex-row items-end rounded-[22px] bg-[#F5F5F5] px-3 py-1">
                   <TextInput
+                    ref={messageInputRef}
                     value={messageText}
                     multiline
                     scrollEnabled
@@ -931,9 +943,7 @@ export default function ChatRoomScreen() {
                     onPressIn={() => setIsEmojiTrayOpen(false)}
                     onFocus={() => {
                       setIsEmojiTrayOpen(false);
-                      requestAnimationFrame(() => {
-                        messageListRef.current?.scrollToEnd({ animated: true });
-                      });
+                      scrollMessagesToBottom(true);
                     }}
                     onChangeText={handleMessageTextChange}
                   />

@@ -76,7 +76,7 @@ export default function LoginScreen() {
             paddingHorizontal: 20,
             paddingTop: 28,
           }}
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode="none"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
