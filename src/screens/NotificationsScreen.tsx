@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -13,21 +13,21 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NotificationItemDto } from "@beefriends/shared-kernel/dto/notification";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
-import { SkeletonBlock } from "../components/SkeletonBlock";
 import {
+  API_BASE_URL,
   getNotifications,
+  getUserProfileById,
   markAllNotificationsRead,
   markNotificationRead,
-} from "../lib/api/notifications";
-import { API_BASE_URL } from "../lib/api/client";
-import { getUserProfileById } from "../lib/api/users";
-import { getValidAuthSession } from "../lib/auth/session";
-import { goBackOrReplace } from "../lib/navigation/back";
+} from "@/api";
+import { SkeletonBlock } from "@/components";
 import {
   countUnreadNotifications,
+  getValidAuthSession,
+  goBackOrReplace,
   isNotificationUnread,
   setUnreadNotificationCount,
-} from "../lib/notifications/unreadNotifications";
+} from "@/lib";
 
 const TEXT_COLOR = "#171819";
 

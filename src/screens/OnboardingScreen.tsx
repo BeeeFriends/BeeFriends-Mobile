@@ -1,12 +1,12 @@
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { useEffect, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getValidAuthSession } from "../lib/auth/session";
+import { getValidAuthSession } from "@/lib";
 
-const welcomeImage = require("../assets/images/welcome.png");
-const titleImage = require("../assets/images/beefriends_title.png");
+const welcomeImage = require("@/assets/images/welcome.png");
+const titleImage = require("@/assets/images/beefriends_title.png");
 
 export default function OnboardingScreen() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);

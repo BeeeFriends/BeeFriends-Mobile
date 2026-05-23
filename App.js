@@ -1,33 +1,31 @@
-import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import { useFonts } from "expo-font";
-import * as Notifications from "expo-notifications";
-import { router, Stack } from "expo-router";
+import "./global.css";
+import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
 } from "@expo-google-fonts/plus-jakarta-sans";
+import { useFonts } from "expo-font";
+import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AppState, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import "react-native-reanimated";
-import { API_BASE_URL } from "../lib/api/client";
-import { getAuthSession } from "../lib/auth/session";
-import { getUserProfileById } from "../lib/api/users";
-import "../global.css";
 
-export { ErrorBoundary } from "expo-router";
-
-export const unstable_settings = {
-  initialRouteName: "index",
-};
+import { API_BASE_URL, getUserProfileById } from "./src/api";
+import { getAuthSession } from "./src/lib";
+import { MainNavigator, navigationRef, router } from "./src/navigation";
+import { flushPendingNavigation } from "./src/navigation/router";
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
-export default function RootLayout() {
+const queryClient = new QueryClient();
+
+export default function App() {
   const [loaded, error] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    SpaceMono: require("./src/assets/fonts/SpaceMono-Regular.ttf"),
     "Jakarta-Regular": PlusJakartaSans_400Regular,
     "Jakarta-SemiBold": PlusJakartaSans_600SemiBold,
     "Jakarta-Bold": PlusJakartaSans_700Bold,
@@ -45,51 +43,20 @@ export default function RootLayout() {
 
   if (error) throw error;
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
   return (
-    <ThemeProvider value={DefaultTheme}>
-      <KeyboardProvider>
-        <AppForegroundPushSync />
-        <AppNotificationRouter />
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="register" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="home"
-            options={{ headerShown: false, animation: "fade" }}
-          />
-          <Stack.Screen
-            name="matches"
-            options={{ headerShown: false, animation: "fade" }}
-          />
-          <Stack.Screen
-            name="chat"
-            options={{ headerShown: false, animation: "fade" }}
-          />
-          <Stack.Screen name="chat-room" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-          <Stack.Screen name="account" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="notification-settings"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="notifications" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="profile"
-            options={{ headerShown: false, animation: "fade" }}
-          />
-          <Stack.Screen
-            name="profile-detail"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-        </Stack>
-      </KeyboardProvider>
-    </ThemeProvider>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={DefaultTheme}
+      onReady={flushPendingNavigation}
+    >
+      <QueryClientProvider client={queryClient}>
+        <KeyboardProvider>
+          <AppForegroundPushSync />
+          <AppNotificationRouter />
+          <MainNavigator />
+        </KeyboardProvider>
+      </QueryClientProvider>
+    </NavigationContainer>
   );
 }
 
@@ -97,7 +64,7 @@ function AppForegroundPushSync() {
   useEffect(() => {
     let isDisposed = false;
 
-    async function syncState(appState: string) {
+    async function syncState(appState) {
       const session = await getAuthSession();
       const userId = session?.user?.id;
 
@@ -105,7 +72,7 @@ function AppForegroundPushSync() {
 
       const shouldReceivePush = appState !== "active";
 
-      import("../lib/notifications/push")
+      import("./src/lib/notifications/push")
         .then(({ syncPushDeliveryState }) =>
           syncPushDeliveryState(userId, shouldReceivePush),
         )
@@ -128,17 +95,10 @@ function AppNotificationRouter() {
   useEffect(() => {
     let isDisposed = false;
 
-    async function openNotification(
-      response: Notifications.NotificationResponse | null,
-    ) {
+    async function openNotification(response) {
       if (!response || isDisposed) return;
 
-      const data = response.notification.request.content.data as {
-        type?: unknown;
-        conversationId?: unknown;
-        senderId?: unknown;
-        notificationId?: unknown;
-      };
+      const data = response.notification.request.content.data ?? {};
 
       if (data.type !== "CHAT" || typeof data.conversationId !== "string") {
         return;
@@ -147,7 +107,7 @@ function AppNotificationRouter() {
       const session = await getAuthSession();
       if (!session?.access_token || isDisposed) {
         router.push({
-          pathname: "/chat-room" as never,
+          pathname: "/chat-room",
           params: { conversationId: data.conversationId },
         });
         return;
@@ -164,7 +124,7 @@ function AppNotificationRouter() {
       if (isDisposed) return;
 
       router.push({
-        pathname: "/chat-room" as never,
+        pathname: "/chat-room",
         params: {
           conversationId: data.conversationId,
           participantId:
@@ -194,10 +154,7 @@ function AppNotificationRouter() {
   return null;
 }
 
-function getProfilePhotoUri(profile?: {
-  profilePhotoUrl?: string | null;
-  photos?: Array<{ url: string; isProfile: boolean }>;
-} | null) {
+function getProfilePhotoUri(profile) {
   const photoUri =
     profile?.profilePhotoUrl ||
     profile?.photos?.find((photo) => photo.isProfile)?.url ||

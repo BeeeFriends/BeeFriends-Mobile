@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AppState,
@@ -16,16 +16,25 @@ import type {
   MatchDto,
   MessageDto,
 } from "@beefriends/shared-kernel/dto/chat";
-import { ChatIcon, PersonIcon, SearchIcon } from "../components/icons";
-import { MainTabScreen } from "../components/MainTabScreen";
-import { NotificationButton } from "../components/NotificationButton";
-import { SkeletonBlock } from "../components/SkeletonBlock";
-import { API_BASE_URL } from "../lib/api/client";
-import { getUserConversations } from "../lib/api/conversations";
-import { getUserMatches } from "../lib/api/matches";
-import { getBatchPresence } from "../lib/api/presence";
-import { getValidAuthSession } from "../lib/auth/session";
-import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
+import {
+  ChatIcon,
+  MainTabScreen,
+  NotificationButton,
+  PersonIcon,
+  SearchIcon,
+  SkeletonBlock,
+} from "@/components";
+import {
+  API_BASE_URL,
+  getBatchPresence,
+  getUserConversations,
+  getUserMatches,
+} from "@/api";
+import {
+  CHAT_EVENTS,
+  getChatSocket,
+  getValidAuthSession,
+} from "@/lib";
 
 type ChatItem = {
   id: string;

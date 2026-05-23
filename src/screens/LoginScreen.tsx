@@ -1,13 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { loginAccount } from "../lib/api/auth";
-import { saveAuthSession } from "../lib/auth/session";
-import { goBackOrReplace } from "../lib/navigation/back";
+import { loginAccount } from "@/api";
+import { goBackOrReplace, saveAuthSession } from "@/lib";
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error && error.message) {

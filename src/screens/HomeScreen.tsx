@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { useEffect, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import type {
@@ -10,15 +10,20 @@ import type { AuthResponseDto } from "@beefriends/shared-kernel/types";
 import {
   HandIcon,
   LocationCampusIcon,
+  MainTabScreen,
   MajorIcon,
   PersonIcon,
   SettingIcon,
-} from "../components/icons";
-import { MainTabScreen } from "../components/MainTabScreen";
-import { SkeletonBlock } from "../components/SkeletonBlock";
-import { API_BASE_URL } from "../lib/api/client";
-import { getValidAuthSession } from "../lib/auth/session";
-import { discoverMatches, swipeUser } from "../lib/api/matches";
+  SkeletonBlock,
+} from "@/components";
+import {
+  API_BASE_URL,
+  discoverMatches,
+  swipeUser,
+} from "@/api";
+import {
+  getValidAuthSession,
+} from "@/lib";
 
 export default function HomeScreen() {
   const [session, setSession] = useState<AuthResponseDto | null>(null);
@@ -125,7 +130,7 @@ export default function HomeScreen() {
     <MainTabScreen active="home" contentClassName="px-3 pt-4">
         <View className="flex-row items-center justify-between px-1">
           <Image
-            source={require("../assets/images/beefriends_title.png")}
+            source={require("@/assets/images/beefriends_title.png")}
             className="h-[31px] w-[98px]"
             resizeMode="contain"
           />
@@ -234,7 +239,7 @@ export default function HomeScreen() {
 }
 
 function registerPushToken(userId: number) {
-  import("../lib/notifications/push")
+  import("@/lib/notifications/push")
     .then(({ registerForPushNotifications }) =>
       registerForPushNotifications(userId),
     )
@@ -246,7 +251,7 @@ function ExploreSkeleton() {
     <MainTabScreen active="home" contentClassName="px-3 pt-4">
         <View className="flex-row items-center justify-between px-1">
           <Image
-            source={require("../assets/images/beefriends_title.png")}
+            source={require("@/assets/images/beefriends_title.png")}
             className="h-[31px] w-[98px]"
             resizeMode="contain"
           />

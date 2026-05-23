@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import * as ImagePicker from "expo-image-picker";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
@@ -17,12 +17,16 @@ import {
   type KeyboardAwareScrollViewRef,
 } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { registerAccount } from "../lib/api/auth";
-import { getCampusOptions } from "../lib/api/campus";
-import { getHobbyOptions } from "../lib/api/hobbies";
-import { getMajorOptions } from "../lib/api/majors";
-import { saveAuthSession } from "../lib/auth/session";
-import type { SelectOption } from "../lib/api/types";
+import {
+  getCampusOptions,
+  getHobbyOptions,
+  getMajorOptions,
+  registerAccount,
+  type SelectOption,
+} from "@/api";
+import {
+  saveAuthSession,
+} from "@/lib";
 
 const steps = [1, 2, 3, 4, 5];
 const currentYear = new Date().getFullYear() + 4;
@@ -37,7 +41,7 @@ const binusianYearOptions: SelectOption[] = Array.from(
   },
 );
 
-const registerImage = require("../assets/images/register.png");
+const registerImage = require("@/assets/images/register.png");
 const MAX_HOBBY_SELECTIONS = 10;
 const maxDescriptionWords = 40;
 

@@ -1,7 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // Pastikan path ini mencakup semua file komponen/layar Anda
-  content: ["./app/**/*.{js,jsx,ts,tsx}"],
+  content: ["./App.{js,jsx,ts,tsx}", "./src/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
@@ -11,7 +10,6 @@ module.exports = {
         "primary-black": "#171819",
       },
       fontFamily: {
-        // Nama "jakarta" ini yang akan dipanggil di className
         jakarta: ["Jakarta-Regular", "sans-serif"],
         "jakarta-bold": ["Jakarta-Bold", "sans-serif"],
         "jakarta-semibold": ["Jakarta-SemiBold", "sans-serif"],

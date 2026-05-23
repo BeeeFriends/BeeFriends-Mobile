@@ -1,18 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
-import { SkeletonBlock } from "../components/SkeletonBlock";
-import { API_BASE_URL } from "../lib/api/client";
-import { getValidAuthSession } from "../lib/auth/session";
-import { goBackOrReplace } from "../lib/navigation/back";
+import { API_BASE_URL } from "@/api";
+import { SkeletonBlock } from "@/components";
+import { getValidAuthSession, goBackOrReplace } from "@/lib";
 
 const TEXT_COLOR = "#171819";
-const MUTED_COLOR = "#777873";
-const BAND_COLOR = "#F6F6F6";
 
 export default function AccountScreen() {
   const [profile, setProfile] = useState<UserProfileDto | null>(null);

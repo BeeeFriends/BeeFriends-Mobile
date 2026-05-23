@@ -1,11 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { clearAuthSession, getValidAuthSession } from "../lib/auth/session";
-import { goBackOrReplace } from "../lib/navigation/back";
+import { clearAuthSession, getValidAuthSession, goBackOrReplace } from "@/lib";
 
 const TEXT_COLOR = "#171819";
 export default function SettingsScreen() {

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { useCallback, useState } from "react";
 import {
   Image,
@@ -12,11 +12,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { UserProfileDto } from "@beefriends/shared-kernel/types";
-import { PersonIcon } from "../components/icons";
-import { MainTabScreen } from "../components/MainTabScreen";
-import { SkeletonBlock } from "../components/SkeletonBlock";
-import { API_BASE_URL } from "../lib/api/client";
-import { getValidAuthSession } from "../lib/auth/session";
+import { API_BASE_URL } from "@/api";
+import { MainTabScreen, PersonIcon, SkeletonBlock } from "@/components";
+import { getValidAuthSession } from "@/lib";
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfileDto | null>(null);

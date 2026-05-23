@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "@/navigation/router";
 import { StatusBar } from "expo-status-bar";
 import { useMemo, useState } from "react";
 import { Image, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { MatchProfileDto } from "@beefriends/shared-kernel/dto/chat";
-import { PersonIcon } from "../components/icons";
-import { API_BASE_URL } from "../lib/api/client";
-import { goBackOrReplace } from "../lib/navigation/back";
+import { API_BASE_URL } from "@/api";
+import { PersonIcon } from "@/components";
+import { goBackOrReplace } from "@/lib";
 
 export default function ProfileDetailScreen() {
   const params = useLocalSearchParams<{ profile?: string }>();

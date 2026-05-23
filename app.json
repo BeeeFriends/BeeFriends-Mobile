@@ -5,11 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "newArchEnabled": false,
-    "icon": "./assets/images/beefriends_logo.png",
+    "icon": "./src/assets/images/beefriends_logo.png",
     "scheme": "beefriendsfe",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/images/beefriends_logo.png",
+      "image": "./src/assets/images/beefriends_logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,8 +19,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFDD2D",
-        "foregroundImage": "./assets/images/beefriends_logo.png",
-        "monochromeImage": "./assets/images/beefriends_logo.png"
+        "foregroundImage": "./src/assets/images/beefriends_logo.png",
+        "monochromeImage": "./src/assets/images/beefriends_logo.png"
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
@@ -30,11 +30,8 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/beefriends_logo.png"
+      "favicon": "./src/assets/images/beefriends_logo.png"
     },
-    "plugins": ["expo-router", "expo-font", "expo-notifications"],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "plugins": ["expo-font", "expo-notifications"]
   }
 }

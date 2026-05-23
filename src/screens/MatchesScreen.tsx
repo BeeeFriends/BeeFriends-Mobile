@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,17 +13,23 @@ import type { MatchDto, MatchProfileDto } from "@beefriends/shared-kernel/dto/ch
 import {
   CommentIcon,
   HandIcon,
+  MainTabScreen,
+  NotificationButton,
   PersonIcon,
+  SkeletonBlock,
   SubstrackIcon,
-} from "../components/icons";
-import { MainTabScreen } from "../components/MainTabScreen";
-import { NotificationButton } from "../components/NotificationButton";
-import { SkeletonBlock } from "../components/SkeletonBlock";
-import { ToastBanner, useToast } from "../components/ToastBanner";
-import { API_BASE_URL } from "../lib/api/client";
-import { getValidAuthSession } from "../lib/auth/session";
-import { createConversation } from "../lib/api/conversations";
-import { getUserMatches, unmatchUser } from "../lib/api/matches";
+  ToastBanner,
+  useToast,
+} from "@/components";
+import {
+  API_BASE_URL,
+  createConversation,
+  getUserMatches,
+  unmatchUser,
+} from "@/api";
+import {
+  getValidAuthSession,
+} from "@/lib";
 
 export default function MatchesScreen() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);

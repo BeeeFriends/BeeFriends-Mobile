@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
@@ -8,13 +8,15 @@ import type {
   NotificationSettingsDto,
   UpdateNotificationSettingsPayload,
 } from "@beefriends/shared-kernel/dto/notification";
-import { ToastBanner, useToast } from "../components/ToastBanner";
+import { ToastBanner, useToast } from "@/components";
 import {
   getNotificationSettings,
   updateNotificationSettings,
-} from "../lib/api/notifications";
-import { getValidAuthSession } from "../lib/auth/session";
-import { goBackOrReplace } from "../lib/navigation/back";
+} from "@/api";
+import {
+  getValidAuthSession,
+  goBackOrReplace,
+} from "@/lib";
 
 type VisibleNotificationSettingsDto = Pick<
   NotificationSettingsDto,
@@ -193,7 +195,7 @@ export default function NotificationSettingsScreen() {
 }
 
 function registerPushToken(userId: number) {
-  import("../lib/notifications/push")
+  import("@/lib/notifications/push")
     .then(({ registerForPushNotifications }) =>
       registerForPushNotifications(userId),
     )
@@ -201,7 +203,7 @@ function registerPushToken(userId: number) {
 }
 
 function disablePushToken(userId: number) {
-  import("../lib/notifications/push")
+  import("@/lib/notifications/push")
     .then(({ syncPushDeliveryState }) =>
       syncPushDeliveryState(userId, false).catch(() => undefined),
     )

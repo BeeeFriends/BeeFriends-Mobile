@@ -1,16 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Modal,
   Pressable,
-  ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
@@ -22,31 +19,36 @@ import type {
   UpdateUserDto,
   UserProfileDto,
 } from "@beefriends/shared-kernel/types";
-import { PersonIcon } from "../components/icons";
-import { SkeletonBlock } from "../components/SkeletonBlock";
-import { ToastBanner, useToast } from "../components/ToastBanner";
-import { getCampusOptions } from "../lib/api/campus";
-import { API_BASE_URL } from "../lib/api/client";
-import { getHobbyOptions } from "../lib/api/hobbies";
-import { getMajorOptions } from "../lib/api/majors";
-import type { SelectOption } from "../lib/api/types";
-import { getValidAuthSession, saveAuthSession } from "../lib/auth/session";
-import { updateCurrentUserProfile, uploadProfilePhoto } from "../lib/api/users";
-import { goBackOrReplace } from "../lib/navigation/back";
-
-const MAX_HOBBY_SELECTIONS = 10;
-
-type EditProfileDraft = {
-  displayName: string;
-  phoneNumber: string;
-  description: string;
-  age: string;
-  profilePhotoUrl: string;
-  photoUrls: string[];
-  campusId: string;
-  majorId: string;
-  hobbyIds: string[];
-};
+import {
+  EditablePhotoTile,
+  EditField,
+  EditProfileSkeleton,
+  HobbyPicker,
+  OptionSelectField,
+  PersonIcon,
+  ToastBanner,
+  useToast,
+} from "@/components";
+import {
+  getCampusOptions,
+  getHobbyOptions,
+  getMajorOptions,
+  type SelectOption,
+  updateCurrentUserProfile,
+} from "@/api";
+import {
+  getValidAuthSession,
+  goBackOrReplace,
+  saveAuthSession,
+} from "@/lib";
+import {
+  MAX_GALLERY_PHOTOS,
+  MAX_HOBBY_SELECTIONS,
+  createEditProfileDraft,
+  getErrorMessage,
+  resolveUploadedPhotoUrl,
+  type EditProfileDraft,
+} from "@/utils";
 
 export default function EditProfileScreen() {
   const scrollViewRef = useRef<KeyboardAwareScrollViewRef>(null);
@@ -80,31 +82,12 @@ export default function EditProfileScreen() {
 
         if (!isMounted) return;
 
-        const galleryPhotos =
-          session.user.photos
-            ?.filter((photo) => !photo.isProfile)
-            .slice(0, 3)
-            .map((photo) => normalizePhotoUri(photo.url)) ?? [];
-
         setCampusOptions(campuses);
         setMajorOptions(majors);
         setHobbyOptions(hobbies);
         setProfile(session.user);
         setAccessToken(session.access_token);
-        setDraft({
-          displayName: session.user.displayName || "",
-          phoneNumber: session.user.phoneNumber || "",
-          description: session.user.description || "",
-          age: session.user.age ? String(session.user.age) : "",
-          profilePhotoUrl: getProfilePhotoUri(session.user),
-          photoUrls: galleryPhotos,
-          campusId: session.user.campus?.id
-            ? String(session.user.campus.id)
-            : "",
-          majorId: session.user.major?.id ? String(session.user.major.id) : "",
-          hobbyIds:
-            session.user.hobbies?.map((hobby) => String(hobby.id)) ?? [],
-        });
+        setDraft(createEditProfileDraft(session.user));
       } catch (error) {
         showToast({
           title: "Failed to load profile",
@@ -154,11 +137,11 @@ export default function EditProfileScreen() {
 
     if (typeof index === "number") {
       nextPhotoUrls[index] = uri;
-    } else if (nextPhotoUrls.length < 3) {
+    } else if (nextPhotoUrls.length < MAX_GALLERY_PHOTOS) {
       nextPhotoUrls.push(uri);
     }
 
-    updateDraft({ photoUrls: nextPhotoUrls.slice(0, 3) });
+    updateDraft({ photoUrls: nextPhotoUrls.slice(0, MAX_GALLERY_PHOTOS) });
   };
 
   const removeGalleryPhoto = (index: number) => {
@@ -252,7 +235,7 @@ export default function EditProfileScreen() {
       const galleryPhotoUrls = await Promise.all(
         draft.photoUrls
           .filter(Boolean)
-          .slice(0, 3)
+          .slice(0, MAX_GALLERY_PHOTOS)
           .map((photoUri) =>
             resolveUploadedPhotoUrl(accessToken, photoUri, "gallery"),
           ),
@@ -266,7 +249,7 @@ export default function EditProfileScreen() {
         majorId: Number(draft.majorId),
         hobbyIds: draft.hobbyIds.map(Number),
         profilePhotoUrl: profilePhotoUrl || profile?.profilePhotoUrl,
-        photoUrls: galleryPhotoUrls.filter(Boolean).slice(0, 3),
+        photoUrls: galleryPhotoUrls.filter(Boolean).slice(0, MAX_GALLERY_PHOTOS),
       };
       const phoneNumber = draft.phoneNumber.trim();
       if (phoneNumber) updatePayload.phoneNumber = phoneNumber;
@@ -398,12 +381,12 @@ export default function EditProfileScreen() {
                 </Text>
               </View>
               <Text className="font-jakarta-bold text-[12px] text-[#777873]">
-                {draft.photoUrls.length}/3
+                {draft.photoUrls.length}/{MAX_GALLERY_PHOTOS}
               </Text>
             </View>
 
             <View className="mt-3 flex-row gap-3">
-              {Array.from({ length: 3 }).map((_, index) => {
+              {Array.from({ length: MAX_GALLERY_PHOTOS }).map((_, index) => {
                 const photoUri = draft.photoUrls[index];
 
                 return (
@@ -505,264 +488,6 @@ export default function EditProfileScreen() {
   );
 }
 
-function OptionSelectField({
-  label,
-  value,
-  options,
-  placeholder,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: SelectOption[];
-  placeholder: string;
-  disabled?: boolean;
-  onChange: (value: string) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const selectedOption = options.find((option) => option.value === value);
-
-  return (
-    <View>
-      <RequiredLabel>{label}</RequiredLabel>
-      <Pressable
-        className={`h-[45px] flex-row items-center justify-between rounded-xl border border-[#9A9A9A] px-4 ${
-          disabled ? "opacity-60" : ""
-        }`}
-        accessibilityRole="button"
-        disabled={disabled}
-        onPress={() => setIsOpen(true)}
-      >
-        <Text
-          className={`mr-3 flex-1 font-jakarta text-[13px] ${
-            selectedOption ? "text-[#171819]" : "text-[#8D8D8D]"
-          }`}
-          numberOfLines={1}
-        >
-          {selectedOption?.label || placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={18} color="#777873" />
-      </Pressable>
-
-      <Modal
-        animationType="fade"
-        transparent
-        visible={isOpen}
-        onRequestClose={() => setIsOpen(false)}
-      >
-        <Pressable
-          className="flex-1 justify-end bg-black/30"
-          onPress={() => setIsOpen(false)}
-        >
-          <Pressable className="max-h-[420px] rounded-t-3xl bg-white px-5 pb-8 pt-4">
-            <View className="mb-3 h-1 w-12 self-center rounded-full bg-[#D9D9D9]" />
-            <Text className="mb-3 font-jakarta-bold text-[16px] text-[#171819]">
-              {label}
-            </Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {options.map((option) => (
-                <Pressable
-                  key={option.value}
-                  className="flex-row items-center justify-between border-b border-[#F0F0F0] py-4"
-                  accessibilityRole="button"
-                  onPress={() => {
-                    onChange(option.value);
-                    setIsOpen(false);
-                  }}
-                >
-                  <Text className="font-jakarta text-[14px] text-[#171819]">
-                    {option.label}
-                  </Text>
-                  {value === option.value ? (
-                    <Ionicons name="checkmark" size={20} color="#211C1D" />
-                  ) : null}
-                </Pressable>
-              ))}
-
-              {options.length === 0 ? (
-                <View className="h-24 items-center justify-center">
-                  <Text className="font-jakarta text-[12px] text-[#777873]">
-                    No options available.
-                  </Text>
-                </View>
-              ) : null}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
-  );
-}
-
-function RequiredLabel({ children }: { children: string }) {
-  return (
-    <Text className="mb-2 font-jakarta-bold text-[12px] text-[#171819]">
-      {children}
-      <Text className="text-[#D71920]">*</Text>
-    </Text>
-  );
-}
-
-function HobbyPicker({
-  options,
-  selectedValues,
-  maxSelected,
-  disabled,
-  onToggle,
-}: {
-  options: SelectOption[];
-  selectedValues: string[];
-  maxSelected: number;
-  disabled?: boolean;
-  onToggle: (value: string) => void;
-}) {
-  const isSelectionFull = selectedValues.length >= maxSelected;
-
-  return (
-    <View className="mt-4 flex-row flex-wrap gap-2">
-      {disabled ? (
-        <Text className="font-jakarta text-[12px] text-[#777873]">
-          Loading interests...
-        </Text>
-      ) : options.length === 0 ? (
-        <Text className="font-jakarta text-[12px] text-[#777873]">
-          No interests available.
-        </Text>
-      ) : (
-        options.map((option) => {
-          const isSelected = selectedValues.includes(option.value);
-          const isOverLimitOption = isSelectionFull && !isSelected;
-
-          return (
-            <Pressable
-              key={option.value}
-              className={`h-[34px] items-center justify-center rounded-full border px-4 ${
-                isSelected
-                  ? "border-[#211C1D] bg-[#211C1D]"
-                  : "border-[#211C1D] bg-white"
-              } ${isOverLimitOption ? "opacity-45" : ""}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              onPress={() => onToggle(option.value)}
-            >
-              <Text
-                className={`font-jakarta-semibold text-[12px] ${
-                  isSelected ? "text-white" : "text-[#171819]"
-                }`}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })
-      )}
-    </View>
-  );
-}
-
-function EditablePhotoTile({
-  uri,
-  onPick,
-  onRemove,
-}: {
-  uri?: string;
-  onPick: () => void;
-  onRemove: () => void;
-}) {
-  return (
-    <Pressable
-      className="aspect-square flex-1 overflow-hidden rounded-2xl bg-[#F1F1F1]"
-      accessibilityRole="button"
-      onPress={onPick}
-    >
-      {uri ? (
-        <>
-          <Image
-            source={{ uri }}
-            className="h-full w-full"
-            resizeMode="cover"
-          />
-          <Pressable
-            className="absolute right-2 top-2 h-7 w-7 items-center justify-center rounded-full bg-black/70"
-            accessibilityRole="button"
-            onPress={onRemove}
-          >
-            <Ionicons name="trash" size={14} color="#FFFFFF" />
-          </Pressable>
-        </>
-      ) : (
-        <View className="h-full w-full items-center justify-center">
-          <Ionicons name="add" size={25} color="#777873" />
-        </View>
-      )}
-    </Pressable>
-  );
-}
-
-function EditField({
-  label,
-  value,
-  onChangeText,
-  onFocus,
-  keyboardType,
-  multiline = false,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  onFocus?: () => void;
-  keyboardType?: "default" | "number-pad" | "phone-pad";
-  multiline?: boolean;
-}) {
-  return (
-    <View>
-      <Text className="mb-2 font-jakarta-bold text-[12px] text-[#171819]">
-        {label}
-      </Text>
-      <TextInput
-        value={value}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        textAlignVertical={multiline ? "top" : "center"}
-        className={`rounded-2xl bg-[#F5F5F5] px-4 font-jakarta text-[14px] text-[#171819] ${
-          multiline ? "min-h-[112px] py-3 leading-5" : "h-12"
-        }`}
-        placeholderTextColor="#8D8D8D"
-        onFocus={onFocus}
-        onChangeText={onChangeText}
-      />
-    </View>
-  );
-}
-
-function EditProfileSkeleton() {
-  return (
-    <SafeAreaView className="flex-1 bg-[#F6F6F6]">
-      <StatusBar style="dark" />
-      <View className="mx-auto w-full max-w-[430px] flex-1 bg-white">
-        <View className="h-[88px] flex-row items-center border-b border-[#EFEFEF] bg-white px-6 pt-8">
-          <SkeletonBlock className="mr-4 h-10 w-10 rounded-md" />
-          <SkeletonBlock className="h-6 w-28 rounded-md" />
-          <View className="flex-1" />
-          <SkeletonBlock className="h-10 w-[74px] rounded-full" />
-        </View>
-        <View className="flex-1 px-5 pt-5">
-          <SkeletonBlock className="aspect-[4/5] w-full rounded-[22px]" />
-          <View className="mt-5 flex-row gap-3">
-            <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
-            <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
-            <SkeletonBlock className="aspect-square flex-1 rounded-2xl" />
-          </View>
-          <SkeletonBlock className="mt-6 h-12 w-full rounded-2xl" />
-          <SkeletonBlock className="mt-4 h-12 w-full rounded-2xl" />
-          <SkeletonBlock className="mt-4 h-[112px] w-full rounded-2xl" />
-        </View>
-      </View>
-    </SafeAreaView>
-  );
-}
-
 async function pickImageFromLibrary(
   showToast: (toast: {
     title: string;
@@ -790,57 +515,4 @@ async function pickImageFromLibrary(
   if (result.canceled) return "";
 
   return result.assets[0]?.uri ?? "";
-}
-
-async function resolveUploadedPhotoUrl(
-  accessToken: string,
-  photoUri: string,
-  kind: "profile" | "gallery",
-) {
-  if (!photoUri) return "";
-  if (!isLocalPhotoUri(photoUri)) return photoUri;
-
-  const uploadedPhoto = await uploadProfilePhoto(accessToken, photoUri, kind);
-  return uploadedPhoto.url;
-}
-
-function isLocalPhotoUri(photoUri: string) {
-  return (
-    photoUri.startsWith("file://") ||
-    photoUri.startsWith("content://") ||
-    photoUri.startsWith("ph://")
-  );
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Please try again.";
-}
-
-function getProfilePhotoUri(profile: UserProfileDto | null) {
-  return normalizePhotoUri(
-    profile?.profilePhotoUrl ||
-      profile?.photos?.find((photo) => photo.isProfile)?.url ||
-      profile?.photos?.[0]?.url ||
-      "",
-  );
-}
-
-function normalizePhotoUri(photoUri: string) {
-  if (!photoUri) return "";
-
-  if (
-    photoUri.startsWith("http://") ||
-    photoUri.startsWith("https://") ||
-    photoUri.startsWith("file://") ||
-    photoUri.startsWith("content://") ||
-    photoUri.startsWith("data:")
-  ) {
-    return photoUri;
-  }
-
-  if (photoUri.startsWith("/")) {
-    return `${API_BASE_URL}${photoUri}`;
-  }
-
-  return photoUri;
 }

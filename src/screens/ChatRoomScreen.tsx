@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "@/navigation/router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -25,20 +25,21 @@ import type {
   ConversationWithMessagesDto,
   MessageDto,
 } from "@beefriends/shared-kernel/dto/chat";
-import { ChatIcon } from "../components/icons";
-import { SkeletonBlock } from "../components/SkeletonBlock";
-import { ToastBanner, useToast } from "../components/ToastBanner";
-import { API_BASE_URL } from "../lib/api/client";
+import { ChatIcon, SkeletonBlock, ToastBanner, useToast } from "@/components";
 import {
+  API_BASE_URL,
   getConversationWithMessages,
+  getUserPresence,
   markMessageRead,
   sendMessage,
-} from "../lib/api/conversations";
-import { getUserPresence } from "../lib/api/presence";
-import { uploadChatAttachment } from "../lib/api/users";
-import { getValidAuthSession } from "../lib/auth/session";
-import { goBackOrReplace } from "../lib/navigation/back";
-import { CHAT_EVENTS, getChatSocket } from "../lib/realtime/chatSocket";
+  uploadChatAttachment,
+} from "@/api";
+import {
+  CHAT_EVENTS,
+  getChatSocket,
+  getValidAuthSession,
+  goBackOrReplace,
+} from "@/lib";
 
 const emojiCategories = [
   {
