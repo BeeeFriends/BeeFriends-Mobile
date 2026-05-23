@@ -1,12 +1,12 @@
 import { HOBBY_ENDPOINTS } from "@beefriends/shared-kernel";
 import type { HobbyRecordDto } from "@beefriends/shared-kernel/types";
 
-import { requestJson } from "./client";
+import { requestJson } from "@/api/client";
 import {
   getMasterDataItems,
   type MasterDataResponse,
   type SelectOption,
-} from "./types";
+} from "@/api/types";
 
 export async function getHobbyOptions(): Promise<SelectOption[]> {
   const hobbies = await requestJson<MasterDataResponse<HobbyRecordDto>>(

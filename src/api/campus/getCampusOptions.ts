@@ -1,12 +1,12 @@
 import { CAMPUS_ENDPOINTS } from "@beefriends/shared-kernel";
 import type { CampusRecordDto } from "@beefriends/shared-kernel/types";
 
-import { requestJson } from "./client";
+import { requestJson } from "@/api/client";
 import {
   getMasterDataItems,
   type MasterDataResponse,
   type SelectOption,
-} from "./types";
+} from "@/api/types";
 
 export async function getCampusOptions(): Promise<SelectOption[]> {
   const campuses = await requestJson<MasterDataResponse<CampusRecordDto>>(

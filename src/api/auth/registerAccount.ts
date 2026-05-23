@@ -1,22 +1,17 @@
 import { AUTH_ENDPOINTS } from "@beefriends/shared-kernel";
-import type {
-  AuthResponseDto,
-  LoginDto,
-  RegisterDto,
-} from "@beefriends/shared-kernel/types";
+import type { AuthResponseDto, RegisterDto } from "@beefriends/shared-kernel/types";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
 } from "firebase/auth";
-import type { UserCredential } from "firebase/auth";
 
-import { requestJson } from "./client";
-import { getFirebaseAuth } from "../firebase/client";
+import { requestJson } from "@/api/client";
+import { getFirebaseAuth } from "@/lib/firebase";
 
-const FIREBASE_LOGIN_ENDPOINT = "/v1/user/auth/firebase-login";
+import { getFirebaseAuthErrorMessage } from "./helpers";
 
-type RegisterAccountPayload = RegisterDto & {
+export type RegisterAccountPayload = RegisterDto & {
   gender: string;
   age: number;
   profilePhotoUri: string;
@@ -140,72 +135,6 @@ async function registerBackendAccount({
     method: "POST",
     body: formData,
   });
-}
-
-export async function loginAccount(
-  binusianEmail: string,
-  password: string,
-): Promise<AuthResponseDto> {
-  const payload: LoginDto = { binusianEmail, password };
-
-  let credential: UserCredential;
-  try {
-    credential = await signInWithEmailAndPassword(
-      getFirebaseAuth(),
-      payload.binusianEmail,
-      payload.password,
-    );
-  } catch (error) {
-    throw new Error(getFirebaseAuthErrorMessage(error));
-  }
-
-  const idToken = await credential.user.getIdToken();
-
-  return requestJson<AuthResponseDto>(FIREBASE_LOGIN_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ idToken }),
-  });
-}
-
-function getFirebaseAuthErrorMessage(error: unknown) {
-  const code = getFirebaseErrorCode(error);
-
-  if (
-    code === "auth/invalid-credential" ||
-    code === "auth/invalid-email" ||
-    code === "auth/user-not-found" ||
-    code === "auth/wrong-password"
-  ) {
-    return "Email or password is incorrect.";
-  }
-
-  if (code === "auth/email-already-in-use") {
-    return "Email already registered.";
-  }
-
-  if (code === "auth/weak-password") {
-    return "Password is too weak.";
-  }
-
-  if (code === "auth/network-request-failed") {
-    return "Network error. Check your connection and try again.";
-  }
-
-  if (
-    error instanceof Error &&
-    error.message.startsWith("Missing Firebase config")
-  ) {
-    return "Authentication is not configured in this build. Please rebuild with Firebase environment variables.";
-  }
-
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return "Authentication failed. Try again.";
 }
 
 function getFirebaseErrorCode(error: unknown) {
