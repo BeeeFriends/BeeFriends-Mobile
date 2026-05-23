@@ -1,0 +1,12 @@
+export { CardIcon } from "@/components/icons/CardIcon";
+export { ChatIcon } from "@/components/icons/ChatIcon";
+export { CommentIcon } from "@/components/icons/CommentIcon";
+export { HandIcon } from "@/components/icons/HandIcon";
+export { LocationCampusIcon } from "@/components/icons/LocationCampusIcon";
+export { MajorIcon } from "@/components/icons/MajorIcon";
+export { NotificationIcon } from "@/components/icons/NotificationIcon";
+export { PersonIcon } from "@/components/icons/PersonIcon";
+export { SearchIcon } from "@/components/icons/SearchIcon";
+export { SettingIcon } from "@/components/icons/SettingIcon";
+export { SubstrackIcon } from "@/components/icons/SubstrackIcon";
+export type { IconProps } from "@/components/icons/types";

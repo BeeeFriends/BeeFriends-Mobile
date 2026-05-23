@@ -1,7 +1,7 @@
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { Pressable, View } from "react-native";
-import { NotificationIcon } from "./icons";
-import { useUnreadNotificationCount } from "../lib/notifications/unreadNotifications";
+import { NotificationIcon } from "@/components/icons";
+import { useUnreadNotificationCount } from "@/lib";
 
 type NotificationButtonProps = {
   size?: number;

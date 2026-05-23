@@ -1,5 +1,5 @@
 import Svg, { Circle, Path } from "react-native-svg";
-import type { IconProps } from "./types";
+import type { IconProps } from "@/components/icons/types";
 
 export function ChatIcon({
   color = "#777873",

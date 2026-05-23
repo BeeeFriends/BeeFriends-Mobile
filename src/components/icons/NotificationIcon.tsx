@@ -1,5 +1,5 @@
 import Svg, { Path } from "react-native-svg";
-import type { IconProps } from "./types";
+import type { IconProps } from "@/components/icons/types";
 
 export function NotificationIcon({ color = "#000000", size = 21 }: IconProps) {
   const width = (size * 19) / 21;

@@ -1,5 +1,5 @@
 import Svg, { Path } from "react-native-svg";
-import type { IconProps } from "./types";
+import type { IconProps } from "@/components/icons/types";
 
 export function MajorIcon({ color = "#FFFFFF", size = 20 }: IconProps) {
   const width = size;

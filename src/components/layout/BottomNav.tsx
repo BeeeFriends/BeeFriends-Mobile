@@ -1,8 +1,8 @@
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
-import { CardIcon, ChatIcon, HandIcon, PersonIcon } from "./icons";
-import { useMainTabBackBehavior } from "../lib/navigation/back";
+import { CardIcon, ChatIcon, HandIcon, PersonIcon } from "@/components/icons";
+import { useMainTabBackBehavior } from "@/lib";
 
 type BottomNavRoute = "home" | "matches" | "chat" | "profile";
 

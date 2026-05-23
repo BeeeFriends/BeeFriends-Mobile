@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { BottomNav } from "./BottomNav";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 type MainTabRoute = "home" | "matches" | "chat" | "profile";
 
