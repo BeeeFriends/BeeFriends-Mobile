@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { BackHandler } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { router } from "expo-router";
+import { router } from "@/navigation/router";
 
 type MainTabRoute = "home" | "matches" | "chat" | "profile";
 

@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { AuthResponseDto } from "@beefriends/shared-kernel/types";
-import { getCurrentUserProfile } from "../api/users";
+import { getCurrentUserProfile } from "@/api";
 
 const AUTH_SESSION_KEY = "beefriends.auth.session";
 

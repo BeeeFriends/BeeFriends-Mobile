@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import type { NotificationItemDto } from "@beefriends/shared-kernel/dto/notification";
-import { getNotifications } from "../api/notifications";
-import { getValidAuthSession } from "../auth/session";
+import { getNotifications } from "@/api";
+import { getValidAuthSession } from "@/lib/auth";
 
 const REFRESH_INTERVAL_MS = 4000;
 

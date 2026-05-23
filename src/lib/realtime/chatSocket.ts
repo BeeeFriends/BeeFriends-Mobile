@@ -6,7 +6,7 @@ import type {
 } from "@beefriends/shared-kernel/dto/chat";
 import { io, type Socket } from "socket.io-client";
 
-import { API_BASE_URL } from "../api/client";
+import { API_BASE_URL } from "@/api";
 
 const CHAT_EVENTS = {
   JOIN_CONVERSATION: "join_conversation",

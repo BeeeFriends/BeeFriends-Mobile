@@ -4,7 +4,7 @@ import { AppState, Platform } from "react-native";
 import {
   registerDeviceToken,
   updateDeviceTokenState,
-} from "../api/notifications";
+} from "@/api";
 
 const PUSH_TOKEN_KEY = "beefriends.push.deviceToken";
 
