@@ -20,20 +20,34 @@ export function updateCurrentUserProfile(
 function normalizeProfilePhotoPayload(payload: UpdateUserDto): UpdateUserDto {
   return {
     ...payload,
-    profilePhotoUrl:
-      payload.profilePhotoUrl === undefined
-        ? undefined
-        : toRelativeStoragePath(payload.profilePhotoUrl),
-    photoUrls: payload.photoUrls?.map(toRelativeStoragePath),
+    profilePhotoUrl: payload.profilePhotoUrl
+      ? toBackendPhotoUrl(payload.profilePhotoUrl)
+      : undefined,
+    photoUrls: payload.photoUrls?.map(toBackendPhotoUrl).filter(Boolean),
   };
 }
 
-function toRelativeStoragePath(url: string) {
+function toBackendPhotoUrl(url: string) {
+  const trimmedUrl = url.trim();
   const normalizedBaseUrl = API_BASE_URL.replace(/\/+$/, "");
 
-  if (url.startsWith(`${normalizedBaseUrl}/storage/`)) {
-    return url.slice(normalizedBaseUrl.length);
+  if (!trimmedUrl) return "";
+
+  if (trimmedUrl.startsWith("/storage/")) {
+    return `${normalizedBaseUrl}${trimmedUrl}`;
   }
 
-  return url;
+  if (trimmedUrl.startsWith("storage/")) {
+    return `${normalizedBaseUrl}/${trimmedUrl}`;
+  }
+
+  if (trimmedUrl.startsWith("/users/")) {
+    return `${normalizedBaseUrl}/storage${trimmedUrl}`;
+  }
+
+  if (trimmedUrl.startsWith("users/")) {
+    return `${normalizedBaseUrl}/storage/${trimmedUrl}`;
+  }
+
+  return trimmedUrl;
 }

@@ -253,9 +253,8 @@ function NotificationRow({
   onPress: () => void;
 }) {
   const isChat = notification.type === "CHAT";
-  const avatarUri = isChat
-    ? getProfilePhotoUri(notification.senderProfile)
-    : "";
+  const isMatch = notification.type === "MATCH";
+  const avatarUri = getNotificationAvatarUri(notification);
   const iconName =
     notification.type === "MATCH" ? "heart-outline" : "chatbubble-outline";
 
@@ -266,7 +265,7 @@ function NotificationRow({
       onPress={onPress}
     >
       <View className="h-11 w-11 overflow-hidden rounded-full bg-[#FFF7BE]">
-        {isChat && avatarUri ? (
+        {avatarUri ? (
           <Image
             source={{ uri: avatarUri }}
             className="h-full w-full"
@@ -283,7 +282,9 @@ function NotificationRow({
           <Text className="flex-1 font-jakarta-bold text-[14px] leading-5 text-[#171819]">
             {isChat && notification.senderProfile?.displayName
               ? notification.senderProfile.displayName
-              : notification.title}
+              : isMatch && notification.data?.matchedUserName
+                ? notification.data.matchedUserName
+                : notification.title}
           </Text>
           {isNotificationUnread(notification) && (
             <View className="ml-2 mt-[6px] h-2 w-2 rounded-full bg-[#FFF06A]" />
@@ -309,13 +310,32 @@ function NotificationSkeleton() {
   );
 }
 
-function getProfilePhotoUri(profile?: UserProfileDto | null) {
-  const photoUri =
-    profile?.profilePhotoUrl ||
-    profile?.photos?.find((photo) => photo.isProfile)?.url ||
-    profile?.photos?.[0]?.url ||
-    "";
+function getNotificationAvatarUri(notification: EnrichedNotification) {
+  if (notification.type === "CHAT") {
+    return normalizePhotoUri(
+      getProfilePhotoUri(notification.senderProfile) ||
+        notification.data?.senderPhotoUrl ||
+        "",
+    );
+  }
 
+  if (notification.type === "MATCH") {
+    return normalizePhotoUri(notification.data?.matchedUserPhotoUrl || "");
+  }
+
+  return "";
+}
+
+function getProfilePhotoUri(profile?: UserProfileDto | null) {
+  return normalizePhotoUri(
+    profile?.profilePhotoUrl ||
+      profile?.photos?.find((photo) => photo.isProfile)?.url ||
+      profile?.photos?.[0]?.url ||
+      "",
+  );
+}
+
+function normalizePhotoUri(photoUri: string) {
   if (!photoUri) return "";
 
   if (
